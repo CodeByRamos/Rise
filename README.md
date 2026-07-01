@@ -44,8 +44,10 @@ pnpm typecheck
 - [x] `packages/api` — tRPC (`action.log` registrar ação → XP; `progress.me`), 5 testes
 - [x] `apps/web` interativo — registrar ação (toque/tecla A/FAB) → +XP, level-up, anel/barra animam (optimistic UI via `@rise/core`)
 - [x] Camada pronta para ligar: route handler tRPC (`/api/trpc`) + client tipado + provider; clients Supabase (`@supabase/ssr`)
-- [ ] **Falta você:** criar projeto Supabase → rodar migração + seed → trocar optimistic local por `trpc.progress.me`
-- [ ] Auth (JWT no contexto) · `packages/ui` (extrair design system) · observabilidade · Expo (mobile)
+- [x] Auth Supabase — `/entrar` (login/cadastro por e-mail+senha), middleware de sessão, `userId` real no contexto tRPC
+- [x] `packages/db` seed runner do catálogo (`db:seed`)
+- [ ] **Falta você:** preencher `apps/web/.env.local` (4 valores do Supabase) → eu rodo migração + seed → ligo `trpc.progress.me`
+- [ ] `packages/ui` (extrair design system) · observabilidade · Expo (mobile)
 
 ### Rodar a web localmente
 

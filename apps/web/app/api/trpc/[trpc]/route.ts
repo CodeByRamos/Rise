@@ -1,15 +1,15 @@
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter, createContext } from "@rise/api";
 import { createDb } from "@rise/db";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 // postgres.js precisa do runtime Node (não edge).
 export const runtime = "nodejs";
 
 /**
- * Endpoint HTTP do tRPC. A verificação do JWT do Supabase → `userId` real entra
- * quando o Auth estiver ligado; por ora o contexto nasce sem usuário (as
- * procedures protegidas respondem UNAUTHORIZED). `createDb()` é lazy: só falha
- * em runtime se faltar DATABASE_URL — o build não é afetado.
+ * Endpoint HTTP do tRPC. Deriva o `userId` da sessão do Supabase (JWT nos
+ * cookies) e injeta o db no contexto. `createDb()` é lazy — só falha em runtime
+ * se faltar DATABASE_URL; o build não é afetado.
  */
 function handler(req: Request) {
   return fetchRequestHandler({
@@ -17,9 +17,17 @@ function handler(req: Request) {
     req,
     router: appRouter,
     createContext: async () => {
+      let userId: string | null = null;
+      if (
+        process.env.NEXT_PUBLIC_SUPABASE_URL?.startsWith("http") &&
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      ) {
+        const supabase = await createSupabaseServerClient();
+        const { data } = await supabase.auth.getUser();
+        userId = data.user?.id ?? null;
+      }
       const db = createDb();
-      // TODO(auth): extrair e verificar o access token do Supabase do header.
-      return createContext({ db, userId: null });
+      return createContext({ db, userId });
     },
   });
 }
