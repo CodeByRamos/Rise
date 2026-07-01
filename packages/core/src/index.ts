@@ -1,0 +1,14 @@
+/**
+ * @rise/core — domínio puro do Rise.
+ *
+ * Anel mais interno da arquitetura (ver `docs/16-estrutura-pastas.md`): TypeScript
+ * puro, sem React/Drizzle/Next/tRPC. É a fonte da verdade do cálculo de XP,
+ * níveis, streaks e Nível Rise — consumida por servidor (verdade) e cliente
+ * (optimistic UI), Coach de IA e jobs.
+ */
+
+export * from "./xp/curve";
+export * from "./xp/grant";
+export * from "./streak/streak";
+export * from "./level/rise-level";
+export * from "./events";
