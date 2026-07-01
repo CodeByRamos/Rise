@@ -18,6 +18,7 @@ function handler(req: Request) {
     router: appRouter,
     createContext: async () => {
       let userId: string | null = null;
+      let email: string | null = null;
       if (
         process.env.NEXT_PUBLIC_SUPABASE_URL?.startsWith("http") &&
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -25,9 +26,10 @@ function handler(req: Request) {
         const supabase = await createSupabaseServerClient();
         const { data } = await supabase.auth.getUser();
         userId = data.user?.id ?? null;
+        email = data.user?.email ?? null;
       }
       const db = createDb();
-      return createContext({ db, userId });
+      return createContext({ db, userId, email });
     },
   });
 }
