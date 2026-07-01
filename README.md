@@ -19,7 +19,7 @@ packages/
   core/           # Domínio puro: motor de XP, níveis, streaks (sem framework)  ✅
   db/             # Drizzle schema + migração inicial (Postgres/Supabase)  ✅
   api/            # Routers tRPC (registrar ação → XP)  ✅
-  ai/             # Coach (Claude) — a construir
+  ai/             # Coach (Claude em camadas + tools + anti-alucinação)  ✅
   ui/             # Design system + tokens — a construir
   config/         # tsconfig/eslint/tailwind compartilhados — a construir
 ```
@@ -46,7 +46,8 @@ pnpm typecheck
 - [x] Camada pronta para ligar: route handler tRPC (`/api/trpc`) + client tipado + provider; clients Supabase (`@supabase/ssr`)
 - [x] Auth Supabase — `/entrar` (login/cadastro por e-mail+senha), middleware de sessão, `userId` real no contexto tRPC
 - [x] `packages/db` seed runner do catálogo (`db:seed`)
-- [ ] **Falta você:** preencher `apps/web/.env.local` (4 valores do Supabase) → eu rodo migração + seed → ligo `trpc.progress.me`
+- [x] `packages/ai` — Coach de IA (Claude em camadas Haiku/Sonnet/Opus, tools Zod, âncora FATOS anti-alucinação, 9 testes)
+- [ ] **Falta você:** preencher `apps/web/.env.local` (falta anon key, service_role e DATABASE_URL) → eu rodo migração + seed → ligo `trpc.progress.me`
 - [ ] `packages/ui` (extrair design system) · observabilidade · Expo (mobile)
 
 ### Rodar a web localmente
