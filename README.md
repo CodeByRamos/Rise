@@ -42,8 +42,10 @@ pnpm typecheck
 - [x] CI (`.github/workflows/ci.yml`) — typecheck + test + lint
 - [x] `packages/db` — schema Drizzle + migração inicial (18 tabelas, 3 invariantes estruturais)
 - [x] `packages/api` — tRPC (`action.log` registrar ação → XP; `progress.me`), 5 testes
-- [ ] Adaptador HTTP tRPC + client no web → ligar dashboard a dados reais
-- [ ] Projeto Supabase (rodar migração) · Auth (JWT) · `packages/ui` · observabilidade · Expo
+- [x] `apps/web` interativo — registrar ação (toque/tecla A/FAB) → +XP, level-up, anel/barra animam (optimistic UI via `@rise/core`)
+- [x] Camada pronta para ligar: route handler tRPC (`/api/trpc`) + client tipado + provider; clients Supabase (`@supabase/ssr`)
+- [ ] **Falta você:** criar projeto Supabase → rodar migração + seed → trocar optimistic local por `trpc.progress.me`
+- [ ] Auth (JWT no contexto) · `packages/ui` (extrair design system) · observabilidade · Expo (mobile)
 
 ### Rodar a web localmente
 

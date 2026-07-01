@@ -82,3 +82,48 @@
     animation: none;
   }
 }
+
+/* +XP flutuando ao registrar uma ação. */
+@keyframes float-up {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.9);
+  }
+  18% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-46px) scale(1);
+  }
+}
+.animate-float-up {
+  animation: float-up 1.1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Aparição de sheet / celebração de level-up. */
+@keyframes pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.animate-pop-in {
+  animation: pop-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-up,
+  .animate-pop-in {
+    animation: none;
+  }
+}

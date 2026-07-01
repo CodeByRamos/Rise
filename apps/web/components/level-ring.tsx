@@ -48,7 +48,10 @@ export function LevelRing({
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={`${dash} ${circ}`}
-          style={{ filter: "drop-shadow(0 0 10px rgba(16,185,129,0.45))" }}
+          style={{
+            filter: "drop-shadow(0 0 10px rgba(16,185,129,0.45))",
+            transition: "stroke-dasharray 0.7s cubic-bezier(0.22, 1, 0.36, 1)",
+          }}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
