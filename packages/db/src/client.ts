@@ -15,7 +15,12 @@ export function createDb(connectionString = process.env.DATABASE_URL) {
       "DATABASE_URL não definido — configure o Postgres do Supabase (ver packages/db/.env.example).",
     );
   }
-  const client = postgres(connectionString, { prepare: false });
+  // Supabase (pooler/direct) exige SSL; local sem TLS não usa.
+  const usaSsl = /supabase\.(co|com)/.test(connectionString);
+  const client = postgres(connectionString, {
+    prepare: false,
+    ...(usaSsl ? { ssl: "require" as const } : {}),
+  });
   return drizzle(client, { schema });
 }
 
