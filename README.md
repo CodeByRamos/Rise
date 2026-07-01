@@ -17,8 +17,8 @@ apps/
   mobile/         # Expo / React Native — Fase 2
 packages/
   core/           # Domínio puro: motor de XP, níveis, streaks (sem framework)  ✅
-  db/             # Drizzle schema + migrações — a construir
-  api/            # Routers tRPC — a construir
+  db/             # Drizzle schema + migração inicial (Postgres/Supabase)  ✅
+  api/            # Routers tRPC (registrar ação → XP)  ✅
   ai/             # Coach (Claude) — a construir
   ui/             # Design system + tokens — a construir
   config/         # tsconfig/eslint/tailwind compartilhados — a construir
@@ -40,8 +40,10 @@ pnpm typecheck
 - [x] `packages/core` — motor de XP/níveis/streaks/Nível Rise, testado contra o spec canônico (62 testes)
 - [x] `apps/web` — Next.js 15 + Tailwind v4, tokens da marca oficial, dashboard "Minha Evolução" consumindo `@rise/core`
 - [x] CI (`.github/workflows/ci.yml`) — typecheck + test + lint
-- [ ] `packages/db` (Drizzle + Supabase) → `packages/api` (tRPC) → `packages/ui` (extrair tokens/componentes)
-- [ ] Auth, observabilidade, Expo (mobile)
+- [x] `packages/db` — schema Drizzle + migração inicial (18 tabelas, 3 invariantes estruturais)
+- [x] `packages/api` — tRPC (`action.log` registrar ação → XP; `progress.me`), 5 testes
+- [ ] Adaptador HTTP tRPC + client no web → ligar dashboard a dados reais
+- [ ] Projeto Supabase (rodar migração) · Auth (JWT) · `packages/ui` · observabilidade · Expo
 
 ### Rodar a web localmente
 
