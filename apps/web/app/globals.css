@@ -30,6 +30,25 @@
   --radius-pill: 999px;
 }
 
+/* Cores canônicas por Área da Vida (doc 15) — usadas via colorToken do catálogo. */
+:root {
+  --area-estudos: #f59e0b;
+  --area-programacao: #5eead4;
+  --area-academia: #fb923c;
+  --area-saude: #34d399;
+  --area-sono: #60a5fa;
+  --area-alimentacao: #a3e635;
+  --area-leitura: #a78bfa;
+  --area-financas: #fbbf24;
+  --area-idiomas: #f472b6;
+  --area-musica: #c084fc;
+  --area-surf: #22d3ee;
+  --area-skate: #94a3b8;
+  --area-espiritualidade: #e879f9;
+  --area-relacionamentos: #fb7185;
+  --area-trabalho: #38bdf8;
+}
+
 @layer base {
   html {
     color-scheme: dark;

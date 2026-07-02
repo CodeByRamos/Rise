@@ -16,6 +16,11 @@ export interface AreaCardProps {
  * AreaCard — uma Área da Vida como "classe" de RPG. Clicável: registra uma ação
  * naquela área (optimistic +XP). A barra anima a fração de progresso.
  */
+/** Aceita hex ("#a78bfa") ou token do design system ("--area-leitura"). */
+export function cssColor(cor: string): string {
+  return cor.startsWith("--") ? `var(${cor})` : cor;
+}
+
 export function AreaCard({
   nome,
   cor,
@@ -26,6 +31,7 @@ export function AreaCard({
   onRegister,
 }: AreaCardProps) {
   const pct = Math.round(fracao * 100);
+  const corCss = cssColor(cor);
   return (
     <button
       type="button"
@@ -37,7 +43,10 @@ export function AreaCard({
         <div className="flex items-center gap-2.5">
           <span
             className="size-2.5 rounded-full"
-            style={{ backgroundColor: cor, boxShadow: `0 0 10px ${cor}66` }}
+            style={{
+              backgroundColor: corCss,
+              boxShadow: `0 0 10px color-mix(in srgb, ${corCss} 40%, transparent)`,
+            }}
           />
           <span className="text-sm font-semibold text-snow">{nome}</span>
         </div>

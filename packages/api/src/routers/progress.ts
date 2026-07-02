@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, isNull, inArray } from "drizzle-orm";
 import {
   users,
   profiles,
@@ -8,9 +8,15 @@ import {
   sparksWallet,
   lifeAreas,
   lifeAreaCatalog,
+  streaks,
+  LIFE_AREA_CATALOG,
 } from "@rise/db";
-import { progressoNoNivel, nivelDeArea } from "@rise/core";
+import { progressoNoNivel, nivelDeArea, calcularNivelRise } from "@rise/core";
 import { router, protectedProcedure } from "../trpc";
+
+// XP-base por área do catálogo (para o optimistic UI do cliente).
+const BASE_XP = new Map(LIFE_AREA_CATALOG.map((a) => [a.id, a.baseXp] as const));
+const BASE_CUSTOM = 10;
 
 // Áreas criadas no onboarding inicial (o usuário pode adicionar/arquivar depois).
 const AREAS_INICIAIS = [
@@ -84,32 +90,47 @@ export const progressRouter = router({
       });
     }),
 
-  /** Dados da tela "Minha Evolução": Nível Rise + stats + Áreas da Vida. */
+  /**
+   * Dados da tela "Minha Evolução": Nível Rise + stats + Áreas da Vida.
+   * Totais derivados DAS ÁREAS na leitura (via @rise/core) — não da projeção
+   * user_stats, que pode ficar momentaneamente atrás sob ações concorrentes.
+   */
   me: protectedProcedure.query(async ({ ctx }) => {
     const userId = ctx.userId;
-
-    const statsRows = await ctx.db
-      .select()
-      .from(userStats)
-      .where(eq(userStats.userId, userId))
-      .limit(1);
-    const stats = statsRows[0];
 
     const areasRows = await ctx.db
       .select()
       .from(lifeAreas)
       .where(and(eq(lifeAreas.userId, userId), eq(lifeAreas.isArchived, false)));
 
+    const streakRows = await ctx.db
+      .select({ current: streaks.currentCount })
+      .from(streaks)
+      .where(and(eq(streaks.userId, userId), isNull(streaks.lifeAreaId)))
+      .limit(1);
+
+    const rise = calcularNivelRise(
+      areasRows.map((a) => ({
+        xp: a.totalXp,
+        ativaNoPeriodo: nivelDeArea(a.totalXp) >= 2,
+      })),
+    );
+
     return {
-      riseLevel: stats?.riseLevel ?? 0,
-      totalXp: stats?.totalXpAll ?? 0,
-      activeAreas: stats?.activeAreas ?? 0,
+      riseLevel: rise.nivelRise,
+      totalXp: rise.xpRise,
+      activeAreas: rise.areasAtivas,
+      streakDias: streakRows[0]?.current ?? 0,
       areas: areasRows.map((a) => {
         const p = progressoNoNivel(a.totalXp);
         return {
           id: a.id,
           nome: a.name,
           cor: a.colorToken,
+          baseXp:
+            a.catalogId && BASE_XP.has(a.catalogId)
+              ? BASE_XP.get(a.catalogId)!
+              : BASE_CUSTOM,
           nivel: nivelDeArea(a.totalXp),
           fracao: p.fracao,
           xpNoNivel: p.xpNoNivel,

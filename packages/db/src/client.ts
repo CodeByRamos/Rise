@@ -19,10 +19,23 @@ export function createDb(connectionString = process.env.DATABASE_URL) {
   const usaSsl = /supabase\.(co|com)/.test(connectionString);
   const client = postgres(connectionString, {
     prepare: false,
+    // Pool enxuto: em serverless cada instância vive pouco; pools grandes
+    // estouram o limite do pooler do Supabase (ex.: session mode = 15 clients).
+    max: 4,
     ...(usaSsl ? { ssl: "require" as const } : {}),
   });
   return drizzle(client, { schema });
 }
 
 export type Database = ReturnType<typeof createDb>;
+
+/**
+ * Singleton por processo: um único client/pool por instância do servidor.
+ * Sem isto, cada request criaria um pool novo e esgotaria o pooler.
+ */
+const globalForDb = globalThis as unknown as { __riseDb?: Database };
+export function getDb(): Database {
+  return (globalForDb.__riseDb ??= createDb());
+}
+
 export { schema };

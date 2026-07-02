@@ -1,6 +1,6 @@
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter, createContext } from "@rise/api";
-import { createDb } from "@rise/db";
+import { getDb } from "@rise/db";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 // postgres.js precisa do runtime Node (não edge).
@@ -28,7 +28,8 @@ function handler(req: Request) {
         userId = data.user?.id ?? null;
         email = data.user?.email ?? null;
       }
-      const db = createDb();
+      // Singleton por processo — nunca um pool novo por request.
+      const db = getDb();
       return createContext({ db, userId, email });
     },
   });

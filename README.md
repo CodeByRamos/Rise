@@ -47,8 +47,10 @@ pnpm typecheck
 - [x] Auth Supabase — `/entrar` (login/cadastro por e-mail+senha), middleware de sessão, `userId` real no contexto tRPC
 - [x] `packages/db` seed runner do catálogo (`db:seed`)
 - [x] `packages/ai` — Coach de IA (Claude em camadas Haiku/Sonnet/Opus, tools Zod, âncora FATOS anti-alucinação, 9 testes)
-- [ ] **Falta você:** preencher `apps/web/.env.local` (falta anon key, service_role e DATABASE_URL) → eu rodo migração + seed → ligo `trpc.progress.me`
-- [ ] `packages/ui` (extrair design system) · observabilidade · Expo (mobile)
+- [x] **Banco no ar:** migração (18 tabelas) + seed (15 Áreas) aplicados no Supabase real
+- [x] Loop validado contra o banco: `action.log` → ledger + projeções + dedupe (smoke test)
+- [x] **Dashboard ligado a dados reais:** `progress.bootstrap` no primeiro acesso, `progress.me` + `action.log` com optimistic UI; login em `/entrar`; modo demo continua sem envs (CI)
+- [ ] Streak engine (extensão/quebra/amortecedores) · Missões · Coach na UI · `packages/ui` · observabilidade · Expo (mobile)
 
 ### Rodar a web localmente
 
