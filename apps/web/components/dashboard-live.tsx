@@ -17,6 +17,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { RiseMark, RiseWordmark } from "./rise-mark";
 import { LevelRing } from "./level-ring";
 import { AreaCard, cssColor } from "./area-card";
+import { Diario } from "./diario";
 
 const nf = new Intl.NumberFormat("pt-BR");
 
@@ -142,6 +143,7 @@ function DashboardInner({ displayName }: { displayName: string }) {
   }, []);
 
   const me = trpc.progress.me.useQuery(undefined, { enabled: booted });
+  const diario = trpc.progress.diario.useQuery(undefined, { enabled: booted });
 
   const logAction = trpc.action.log.useMutation({
     onMutate: async (vars) => {
@@ -184,7 +186,10 @@ function DashboardInner({ displayName }: { displayName: string }) {
         window.setTimeout(() => setCel(null), 2400);
       }
     },
-    onSettled: () => void utils.progress.me.invalidate(),
+    onSettled: () => {
+      void utils.progress.me.invalidate();
+      void utils.progress.diario.invalidate();
+    },
   });
 
   async function enviarProva() {
@@ -373,6 +378,20 @@ function DashboardInner({ displayName }: { displayName: string }) {
               />
             ))}
           </div>
+        </section>
+
+        {/* Diário de Evolução — as provas */}
+        <section
+          className="animate-rise-in mt-10"
+          style={{ animationDelay: "180ms" }}
+        >
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-faint">
+              Diário de Evolução
+            </h2>
+            <span className="text-xs text-muted">suas provas</span>
+          </div>
+          <Diario itens={diario.data ?? []} />
         </section>
 
         <footer className="mt-16 flex items-center justify-center gap-2 text-xs text-faint">

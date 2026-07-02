@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { and, eq, isNull, inArray } from "drizzle-orm";
+import { and, eq, isNull, inArray, desc } from "drizzle-orm";
 import {
   users,
   profiles,
@@ -9,6 +9,8 @@ import {
   lifeAreas,
   lifeAreaCatalog,
   streaks,
+  actionLogs,
+  xpEvents,
   LIFE_AREA_CATALOG,
 } from "@rise/db";
 import { progressoNoNivel, nivelDeArea, calcularNivelRise } from "@rise/core";
@@ -88,6 +90,32 @@ export const progressRouter = router({
         }
         return { criado: true as const, areas: catalogo.length };
       });
+    }),
+
+  /**
+   * Diário de Evolução: últimas ações com PROVA (nota/foto) + área + XP ganho.
+   * É a matéria-prima do feed social da Fase 2.
+   */
+  diario: protectedProcedure
+    .input(z.object({ limite: z.number().int().min(1).max(50).default(12) }).optional())
+    .query(async ({ ctx, input }) => {
+      const rows = await ctx.db
+        .select({
+          id: actionLogs.id,
+          note: actionLogs.note,
+          photoPath: actionLogs.photoPath,
+          createdAt: actionLogs.createdAt,
+          areaNome: lifeAreas.name,
+          areaCor: lifeAreas.colorToken,
+          xp: xpEvents.amount,
+        })
+        .from(actionLogs)
+        .innerJoin(lifeAreas, eq(actionLogs.lifeAreaId, lifeAreas.id))
+        .leftJoin(xpEvents, eq(xpEvents.actionLogId, actionLogs.id))
+        .where(eq(actionLogs.userId, ctx.userId))
+        .orderBy(desc(actionLogs.id))
+        .limit(input?.limite ?? 12);
+      return rows;
     }),
 
   /**
