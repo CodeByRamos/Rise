@@ -18,6 +18,7 @@ import { RiseMark, RiseWordmark } from "./rise-mark";
 import { LevelRing } from "./level-ring";
 import { AreaCard, cssColor } from "./area-card";
 import { Diario } from "./diario";
+import { SparkIcon, CheckIcon, XIcon, CameraIcon, PlusIcon } from "./icons";
 
 const nf = new Intl.NumberFormat("pt-BR");
 
@@ -51,19 +52,6 @@ function Stat({
       </div>
       <div className="mt-1.5 text-xs font-medium text-muted">{rotulo}</div>
     </div>
-  );
-}
-
-function PlusIcon({ size = 22 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M12 5v14M5 12h14"
-        stroke="currentColor"
-        strokeWidth={2.4}
-        strokeLinecap="round"
-      />
-    </svg>
   );
 }
 
@@ -146,6 +134,10 @@ function DashboardInner({ displayName }: { displayName: string }) {
   const me = trpc.progress.me.useQuery(undefined, { enabled: booted });
   const diario = trpc.progress.diario.useQuery(undefined, { enabled: booted });
   const missoes = trpc.mission.today.useQuery(undefined, { enabled: booted });
+  const coach = trpc.coach.checkin.useQuery(undefined, {
+    enabled: booted,
+    staleTime: 60_000,
+  });
 
   const logAction = trpc.action.log.useMutation({
     onMutate: async (vars) => {
@@ -193,7 +185,11 @@ function DashboardInner({ displayName }: { displayName: string }) {
         const id = ++toastId.current;
         setToasts((t) => [
           ...t,
-          { id, amount: m.xpReward, rotulo: `Missão: ${m.titulo} · +${m.sparksReward} ⚡` },
+          {
+            id,
+            amount: m.xpReward,
+            rotulo: `Missão: ${m.titulo} · +${m.sparksReward} Faíscas`,
+          },
         ]);
         window.setTimeout(
           () => setToasts((t) => t.filter((x) => x.id !== id)),
@@ -205,6 +201,7 @@ function DashboardInner({ displayName }: { displayName: string }) {
       void utils.progress.me.invalidate();
       void utils.progress.diario.invalidate();
       void utils.mission.today.invalidate();
+      void utils.coach.checkin.invalidate();
     },
   });
 
@@ -311,7 +308,8 @@ function DashboardInner({ displayName }: { displayName: string }) {
               className="tnum inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] border border-line bg-surface px-3.5 py-1.5 text-xs font-semibold text-snow"
               title="Faíscas — moeda cosmética (nunca compra progresso)"
             >
-              ⚡ {nf.format(d.sparks)}
+              <SparkIcon size={13} className="text-brand" />
+              {nf.format(d.sparks)}
             </span>
             <button
               type="button"
@@ -360,15 +358,17 @@ function DashboardInner({ displayName }: { displayName: string }) {
                 />
                 <Stat valor={`${multTxt}×`} rotulo="Bônus de streak" />
               </div>
-              <div className="mt-6 flex items-center gap-3 rounded-2xl border border-line bg-surface px-4 py-3">
-                <RiseMark size={22} />
-                <p className="text-sm text-muted">
-                  <span className="font-semibold text-snow">
-                    Registre uma ação com prova
-                  </span>{" "}
-                  — escreva o que fez ou anexe uma foto. É isso que torna sua
-                  evolução real.
-                </p>
+              <div className="mt-6 flex items-start gap-3 rounded-2xl border border-line bg-surface px-4 py-3">
+                <RiseMark size={22} className="mt-0.5 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-faint">
+                    Coach
+                  </p>
+                  <p className="mt-0.5 text-sm leading-relaxed text-muted">
+                    {coach.data?.texto ??
+                      "Registre uma ação com prova — escreva o que fez ou anexe uma foto."}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -404,17 +404,16 @@ function DashboardInner({ displayName }: { displayName: string }) {
                       {m.titulo}
                     </p>
                     {m.completa && (
-                      <span aria-label="completa" className="text-brand">
-                        ✓
-                      </span>
+                      <CheckIcon size={16} className="shrink-0 text-brand" />
                     )}
                   </div>
                   <div className="tnum mt-2 flex items-center justify-between text-xs text-muted">
                     <span>
                       {m.progress}/{m.target}
                     </span>
-                    <span className="font-semibold text-brand">
-                      +{m.xpReward} XP · +{m.sparksReward} ⚡
+                    <span className="inline-flex items-center gap-1 font-semibold text-brand">
+                      +{m.xpReward} XP · +{m.sparksReward}
+                      <SparkIcon size={11} />
                     </span>
                   </div>
                   <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-graphite">
@@ -527,7 +526,7 @@ function DashboardInner({ displayName }: { displayName: string }) {
                 aria-label="Fechar"
                 className="text-muted transition-colors hover:text-snow"
               >
-                ✕
+                <XIcon size={16} />
               </button>
             </div>
 
@@ -583,7 +582,8 @@ function DashboardInner({ displayName }: { displayName: string }) {
                   className="hidden"
                   onChange={(e) => setFoto(e.target.files?.[0] ?? null)}
                 />
-                📷 {foto ? "Trocar foto" : "Anexar foto"}
+                <CameraIcon size={15} />
+                {foto ? "Trocar foto" : "Anexar foto"}
               </label>
               {foto && (
                 <span className="max-w-[180px] truncate text-xs text-brand">

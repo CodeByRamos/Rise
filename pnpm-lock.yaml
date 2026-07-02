@@ -103,6 +103,9 @@ importers:
 
   packages/api:
     dependencies:
+      '@rise/ai':
+        specifier: workspace:*
+        version: link:../ai
       '@rise/core':
         specifier: workspace:*
         version: link:../core
