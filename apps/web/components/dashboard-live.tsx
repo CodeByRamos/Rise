@@ -3,11 +3,10 @@
 /**
  * Dashboard "Minha Evolução" LIGADO AOS DADOS REAIS (tRPC → Supabase).
  *
- * - `progress.bootstrap` roda no primeiro acesso (idempotente) e cria as Áreas.
- * - `progress.me` alimenta anel/stats/cards; `action.log` registra ação real.
- * - Optimistic UI: a barra sobe na hora com o baseXp (mesma matemática do
- *   servidor via @rise/core); o servidor confirma e reconcilia (invalidate).
- * - Celebração de level-up vem da RESPOSTA do servidor (autoritativa).
+ * Registro de ação exige PROVA (doc 13 §10.3): uma nota do que foi feito
+ * (mín. 3 caracteres) OU uma foto (bucket privado `provas`). A prova vira o
+ * conteúdo do feed social na Fase 2. Optimistic UI via @rise/core; level-up e
+ * streak são autoritativos do servidor.
  */
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -84,15 +83,48 @@ function Skeleton() {
   );
 }
 
+/** Sobe a foto de prova para provas/<uid>/<uuid>.<ext> (RLS: só a própria pasta). */
+async function uploadFotoProva(file: File): Promise<string> {
+  const supabase = createSupabaseBrowserClient();
+  const { data } = await supabase.auth.getUser();
+  const uid = data.user?.id;
+  if (!uid) throw new Error("Sessão expirada — entre de novo.");
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+  const path = `${uid}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage
+    .from("provas")
+    .upload(path, file, { contentType: file.type });
+  if (error) throw new Error(`Falha no upload da foto: ${error.message}`);
+  return path;
+}
+
 function DashboardInner({ displayName }: { displayName: string }) {
   const router = useRouter();
   const utils = trpc.useUtils();
   const [booted, setBooted] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [cel, setCel] = useState<Celebracao | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
   const toastId = useRef(0);
   const bootStarted = useRef(false);
+
+  // ----- Modal de registro com prova -----
+  const [modalArea, setModalArea] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [nota, setNota] = useState("");
+  const [foto, setFoto] = useState<File | null>(null);
+  const [enviando, setEnviando] = useState(false);
+  const [erroModal, setErroModal] = useState<string | null>(null);
+
+  function abrirModal(areaId: string | null) {
+    setModalArea(areaId);
+    setNota("");
+    setFoto(null);
+    setErroModal(null);
+    setModalOpen(true);
+  }
+  function fecharModal() {
+    if (!enviando) setModalOpen(false);
+  }
 
   // Bootstrap idempotente no primeiro acesso.
   const boot = trpc.progress.bootstrap.useMutation({
@@ -113,7 +145,6 @@ function DashboardInner({ displayName }: { displayName: string }) {
 
   const logAction = trpc.action.log.useMutation({
     onMutate: async (vars) => {
-      // Optimistic: barra sobe na hora com o baseXp da área.
       await utils.progress.me.cancel();
       const prev = utils.progress.me.getData();
       const area = prev?.areas.find((a) => a.id === vars.lifeAreaId);
@@ -125,7 +156,6 @@ function DashboardInner({ displayName }: { displayName: string }) {
           areas: prev.areas.map((a) => {
             if (a.id !== vars.lifeAreaId) return a;
             const xpNoNivel = a.xpNoNivel + ganho;
-            // Na fronteira de nível, deixa o servidor confirmar (level-up é autoritativo).
             return xpNoNivel >= a.xpDoNivel
               ? { ...a }
               : { ...a, xpNoNivel, fracao: xpNoNivel / a.xpDoNivel };
@@ -140,8 +170,10 @@ function DashboardInner({ displayName }: { displayName: string }) {
       }
       return { prev };
     },
-    onError: (_e, _v, ctx2) => {
+    onError: (e, _v, ctx2) => {
       if (ctx2?.prev) utils.progress.me.setData(undefined, ctx2.prev);
+      setErroModal(e.message);
+      setModalOpen(true);
     },
     onSuccess: (res, vars) => {
       if (!res.deduped && res.leveledUp) {
@@ -155,12 +187,37 @@ function DashboardInner({ displayName }: { displayName: string }) {
     onSettled: () => void utils.progress.me.invalidate(),
   });
 
-  function registrar(areaId: string) {
-    logAction.mutate({
-      lifeAreaId: areaId,
-      clientActionId: crypto.randomUUID(),
-      kind: "quick_log",
-    });
+  async function enviarProva() {
+    const areaSel = modalArea;
+    if (!areaSel) {
+      setErroModal("Escolha a Área da Vida.");
+      return;
+    }
+    const notaLimpa = nota.trim();
+    if (notaLimpa.length < 3 && !foto) {
+      setErroModal(
+        "Conte o que você fez (mínimo 3 caracteres) ou anexe uma foto — a prova é o que faz o progresso valer.",
+      );
+      return;
+    }
+    setEnviando(true);
+    setErroModal(null);
+    try {
+      let photoPath: string | undefined;
+      if (foto) photoPath = await uploadFotoProva(foto);
+      logAction.mutate({
+        lifeAreaId: areaSel,
+        clientActionId: crypto.randomUUID(),
+        kind: "quick_log",
+        note: notaLimpa.length >= 3 ? notaLimpa : undefined,
+        photoPath,
+      });
+      setModalOpen(false);
+    } catch (e) {
+      setErroModal(e instanceof Error ? e.message : "Falha ao enviar a prova.");
+    } finally {
+      setEnviando(false);
+    }
   }
 
   async function sair() {
@@ -169,16 +226,16 @@ function DashboardInner({ displayName }: { displayName: string }) {
     router.refresh();
   }
 
-  // Atalho "A" abre o sheet de registro (doc 09).
+  // Atalho "A" abre o registro (doc 09).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
       if (e.key.toLowerCase() === "a" && !e.metaKey && !e.ctrlKey && !e.altKey) {
         e.preventDefault();
-        setSheetOpen((o) => !o);
+        abrirModal(null);
       }
-      if (e.key === "Escape") setSheetOpen(false);
+      if (e.key === "Escape") setModalOpen(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -212,6 +269,7 @@ function DashboardInner({ displayName }: { displayName: string }) {
   const riseProg = progressoNoNivel(
     Math.round(d.totalXp * fatorAmplitude(d.activeAreas)),
   );
+  const areaDoModal = d.areas.find((a) => a.id === modalArea) ?? null;
 
   return (
     <main className="relative min-h-dvh overflow-hidden">
@@ -246,7 +304,7 @@ function DashboardInner({ displayName }: { displayName: string }) {
             Olá, {displayName}.
           </h1>
           <p className="mt-2 text-base text-muted">
-            Toda ação conta. Toda evolução aparece — e agora fica salva.
+            Toda ação conta. Toda evolução aparece — com prova.
           </p>
         </section>
 
@@ -279,9 +337,10 @@ function DashboardInner({ displayName }: { displayName: string }) {
                 <RiseMark size={22} />
                 <p className="text-sm text-muted">
                   <span className="font-semibold text-snow">
-                    Toque numa Área da Vida
+                    Registre uma ação com prova
                   </span>{" "}
-                  para registrar uma ação real — seu XP fica salvo na sua conta.
+                  — escreva o que fez ou anexe uma foto. É isso que torna sua
+                  evolução real.
                 </p>
               </div>
             </div>
@@ -310,7 +369,7 @@ function DashboardInner({ displayName }: { displayName: string }) {
                 fracao={a.fracao}
                 xpNoNivel={a.xpNoNivel}
                 xpDoNivel={a.xpDoNivel}
-                onRegister={() => registrar(a.id)}
+                onRegister={() => abrirModal(a.id)}
               />
             ))}
           </div>
@@ -335,42 +394,119 @@ function DashboardInner({ displayName }: { displayName: string }) {
         ))}
       </div>
 
-      {/* Sheet de registro (FAB / tecla A) */}
-      {sheetOpen && (
-        <div className="animate-pop-in fixed bottom-24 right-6 z-40 w-72 rounded-2xl border border-line bg-surface-2 p-2 shadow-2xl">
-          <p className="px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-faint">
-            Registrar ação
-          </p>
-          {d.areas.map((a) => (
-            <button
-              key={a.id}
-              type="button"
-              onClick={() => registrar(a.id)}
-              className="flex w-full items-center justify-between rounded-xl px-2 py-2 text-left transition-colors hover:bg-surface"
-            >
-              <span className="flex items-center gap-2.5">
-                <span
-                  className="size-2.5 rounded-full"
-                  style={{ backgroundColor: cssColor(a.cor) }}
-                />
-                <span className="text-sm font-medium text-snow">{a.nome}</span>
-              </span>
-              <span className="tnum text-xs font-semibold text-brand">
-                +{a.baseXp}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-
+      {/* FAB */}
       <button
         type="button"
-        onClick={() => setSheetOpen((o) => !o)}
+        onClick={() => abrirModal(null)}
         aria-label="Registrar ação"
         className="fixed bottom-6 right-6 z-40 inline-flex size-14 items-center justify-center rounded-full bg-brand text-void shadow-[0_8px_30px_rgba(16,185,129,0.45)] transition-transform hover:scale-105 active:scale-95"
       >
         <PlusIcon />
       </button>
+
+      {/* Modal de registro com PROVA */}
+      {modalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-void/70 backdrop-blur-sm sm:items-center"
+          onClick={fecharModal}
+        >
+          <div
+            className="animate-pop-in w-full max-w-md rounded-t-[24px] border border-line bg-surface-2 p-6 sm:rounded-[24px]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="font-display text-lg font-semibold text-snow">
+                Registrar ação
+              </h3>
+              <button
+                type="button"
+                onClick={fecharModal}
+                aria-label="Fechar"
+                className="text-muted transition-colors hover:text-snow"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Escolha da área */}
+            <div className="mt-4 flex flex-wrap gap-2">
+              {d.areas.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => setModalArea(a.id)}
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    modalArea === a.id
+                      ? "border-brand bg-brand/10 text-snow"
+                      : "border-line bg-surface text-muted hover:text-snow"
+                  }`}
+                >
+                  <span
+                    className="size-2 rounded-full"
+                    style={{ backgroundColor: cssColor(a.cor) }}
+                  />
+                  {a.nome}
+                  <span className="tnum text-brand">+{a.baseXp}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Prova: nota */}
+            <label
+              className="mt-5 block text-xs font-medium text-muted"
+              htmlFor="prova-nota"
+            >
+              O que você fez? <span className="text-brand">(sua prova)</span>
+            </label>
+            <textarea
+              id="prova-nota"
+              rows={3}
+              value={nota}
+              onChange={(e) => setNota(e.target.value)}
+              placeholder={
+                areaDoModal
+                  ? `Ex.: 40min de ${areaDoModal.nome.toLowerCase()} — o que rolou?`
+                  : "Ex.: li 20 páginas do livro X, treino de pernas completo…"
+              }
+              className="mt-1.5 w-full resize-none rounded-xl border border-line bg-surface px-4 py-3 text-sm text-snow outline-none transition-colors focus:border-brand"
+            />
+
+            {/* Prova: foto (opcional) */}
+            <div className="mt-3 flex items-center gap-3">
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-line bg-surface px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:text-snow">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={(e) => setFoto(e.target.files?.[0] ?? null)}
+                />
+                📷 {foto ? "Trocar foto" : "Anexar foto"}
+              </label>
+              {foto && (
+                <span className="max-w-[180px] truncate text-xs text-brand">
+                  {foto.name}
+                </span>
+              )}
+            </div>
+
+            {erroModal && (
+              <p className="mt-3 text-sm text-red-400">{erroModal}</p>
+            )}
+
+            <button
+              type="button"
+              disabled={enviando || !modalArea}
+              onClick={() => void enviarProva()}
+              className="mt-5 w-full rounded-xl bg-brand py-3 font-semibold text-void transition-transform hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
+            >
+              {enviando ? "Enviando prova…" : "Registrar com prova"}
+            </button>
+            <p className="mt-3 text-center text-[11px] text-faint">
+              Sem prova não há progresso — é o que mantém o Rise honesto.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Celebração de level-up (autoritativa: vem do servidor) */}
       {cel && (

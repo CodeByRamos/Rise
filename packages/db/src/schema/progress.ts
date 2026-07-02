@@ -148,6 +148,10 @@ export const actionLogs = pgTable(
     clientActionId: uuid("client_action_id").notNull(),
     kind: text("kind").notNull(), // quick_log | habit_check | integration
     source: text("source").default("manual").notNull(), // manual | healthkit | githubu…
+    // PROVA da ação (obrigatória na camada de API: nota OU foto).
+    // Vira o conteúdo do feed social na Fase 2.
+    note: text("note"),
+    photoPath: text("photo_path"), // caminho no bucket `provas` (Supabase Storage)
     payload: jsonb("payload")
       .$type<Record<string, unknown>>()
       .default({})

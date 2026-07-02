@@ -10,5 +10,6 @@
 export * from "./xp/curve";
 export * from "./xp/grant";
 export * from "./streak/streak";
+export * from "./streak/engine";
 export * from "./level/rise-level";
 export * from "./events";
