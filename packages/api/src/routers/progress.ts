@@ -132,7 +132,11 @@ export const progressRouter = router({
       .where(and(eq(lifeAreas.userId, userId), eq(lifeAreas.isArchived, false)));
 
     const streakRows = await ctx.db
-      .select({ current: streaks.currentCount })
+      .select({
+        current: streaks.currentCount,
+        longest: streaks.longestCount,
+        freezes: streaks.freezesAvailable,
+      })
       .from(streaks)
       .where(and(eq(streaks.userId, userId), isNull(streaks.lifeAreaId)))
       .limit(1);
@@ -156,6 +160,8 @@ export const progressRouter = router({
       activeAreas: rise.areasAtivas,
       sparks: walletRows[0]?.balance ?? 0,
       streakDias: streakRows[0]?.current ?? 0,
+      streakRecorde: streakRows[0]?.longest ?? 0,
+      freezes: streakRows[0]?.freezes ?? 0,
       areas: areasRows.map((a) => {
         const p = progressoNoNivel(a.totalXp);
         return {

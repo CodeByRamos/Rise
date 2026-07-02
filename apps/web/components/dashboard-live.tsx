@@ -35,22 +35,25 @@ interface Celebracao {
 function Stat({
   valor,
   rotulo,
+  sub,
   destaque = false,
 }: {
   valor: string;
   rotulo: string;
+  sub?: string;
   destaque?: boolean;
 }) {
   return (
     <div>
       <div
-        className={`font-display tnum text-2xl font-semibold leading-none ${
+        className={`font-display tnum tabular-nums text-2xl font-semibold leading-none ${
           destaque ? "text-brand" : "text-snow"
         }`}
       >
         {valor}
       </div>
       <div className="mt-1.5 text-xs font-medium text-muted">{rotulo}</div>
+      {sub && <div className="tnum mt-0.5 text-[11px] text-faint">{sub}</div>}
     </div>
   );
 }
@@ -179,6 +182,17 @@ function DashboardInner({ displayName }: { displayName: string }) {
           ?.areas.find((a) => a.id === vars.lifeAreaId);
         setCel({ nome: area?.nome ?? "Área", nivel: res.areaLevel });
         window.setTimeout(() => setCel(null), 2400);
+      }
+      if (res.freezeGanho) {
+        const id = ++toastId.current;
+        setToasts((t) => [
+          ...t,
+          { id, amount: 0, rotulo: "Streak Freeze ganho — 1 dia protegido" },
+        ]);
+        window.setTimeout(
+          () => setToasts((t) => t.filter((x) => x.id !== id)),
+          2200,
+        );
       }
       // Missão concluída → toast extra com recompensa.
       for (const m of res.missoesCompletadas ?? []) {
@@ -354,6 +368,7 @@ function DashboardInner({ displayName }: { displayName: string }) {
                 <Stat
                   valor={`${d.streakDias} ${d.streakDias === 1 ? "dia" : "dias"}`}
                   rotulo="Sequência"
+                  sub={`recorde ${d.streakRecorde} · ${d.freezes} ${d.freezes === 1 ? "freeze" : "freezes"}`}
                   destaque
                 />
                 <Stat valor={`${multTxt}×`} rotulo="Bônus de streak" />
@@ -486,9 +501,11 @@ function DashboardInner({ displayName }: { displayName: string }) {
             className="animate-float-up flex flex-col items-end"
             style={{ textShadow: "0 0 12px rgba(16,185,129,0.55)" }}
           >
-            <span className="font-display tnum text-2xl font-semibold text-brand">
-              +{t.amount} XP
-            </span>
+            {t.amount > 0 && (
+              <span className="font-display tnum text-2xl font-semibold text-brand">
+                +{t.amount} XP
+              </span>
+            )}
             {t.rotulo && (
               <span className="text-xs font-medium text-snow">{t.rotulo}</span>
             )}

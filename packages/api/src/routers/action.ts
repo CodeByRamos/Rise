@@ -18,8 +18,9 @@ import {
   calcularNivelRise,
   nivelDeArea,
   dataLocalISO,
-  aplicarAcaoNoStreak,
-  type StreakResultado,
+  aplicarAcaoComAmortecedores,
+  FREEZES_MAX,
+  type StreakResultadoAmortecido,
 } from "@rise/core";
 import { router, protectedProcedure } from "../trpc";
 import { computarConcessao } from "../services/xp-grant";
@@ -109,17 +110,21 @@ export const actionRouter = router({
         });
       }
 
-      // 3. Sequências: da área e geral (life_area_id NULL), no fuso do usuário.
+      // 3. Sequências (área + geral) com amortecedores (doc 13 §5.3):
+      //    perdão automático (grátis, streak ≥ 14, 1×/14 dias via grace_until)
+      //    e Streak Freeze (recurso, cobre 1 dia perdido).
       const aplicarStreak = async (
         lifeAreaId: string | null,
-      ): Promise<StreakResultado> => {
+      ): Promise<StreakResultadoAmortecido> => {
         const cond =
           lifeAreaId === null
             ? and(eq(streaks.userId, userId), isNull(streaks.lifeAreaId))
             : and(eq(streaks.userId, userId), eq(streaks.lifeAreaId, lifeAreaId));
         const rows = await tx.select().from(streaks).where(cond).limit(1);
         const atual = rows[0];
-        const r = aplicarAcaoNoStreak(
+        const perdaoDisponivel =
+          !atual?.graceUntil || atual.graceUntil.getTime() <= Date.now();
+        const r = aplicarAcaoComAmortecedores(
           atual
             ? {
                 currentCount: atual.currentCount,
@@ -128,6 +133,10 @@ export const actionRouter = router({
               }
             : null,
           hojeLocal,
+          {
+            freezesAvailable: atual?.freezesAvailable ?? 0,
+            perdaoDisponivel,
+          },
         );
         if (atual) {
           await tx
@@ -137,6 +146,12 @@ export const actionRouter = router({
               longestCount: r.longestCount,
               lastActiveDate: r.lastActiveDate,
               state: "active",
+              ...(r.freezeUsado
+                ? { freezesAvailable: atual.freezesAvailable - 1 }
+                : {}),
+              ...(r.perdaoUsado
+                ? { graceUntil: sql`now() + interval '14 days'` }
+                : {}),
               updatedAt: sql`now()`,
             })
             .where(eq(streaks.id, atual.id));
@@ -147,6 +162,16 @@ export const actionRouter = router({
             currentCount: r.currentCount,
             longestCount: r.longestCount,
             lastActiveDate: r.lastActiveDate,
+          });
+        }
+        if (r.freezeUsado || r.perdaoUsado) {
+          await tx.insert(outbox).values({
+            eventType: "streak.frozen",
+            payload: {
+              userId,
+              scope: lifeAreaId ?? "global",
+              source: r.perdaoUsado ? "auto-forgive" : "item",
+            },
           });
         }
         return r;
@@ -281,6 +306,27 @@ export const actionRouter = router({
         }
       }
 
+      // 6b². Fechou TODAS as missões do dia → ganha 1 Streak Freeze (cap 2).
+      // "Ganho jogando" (doc 13 §5.3) — protege 1 dia perdido no futuro.
+      let freezeGanho = false;
+      if (
+        missoesCompletadas.length > 0 &&
+        missoesPendentes.length - missoesCompletadas.length === 0
+      ) {
+        const geral = await tx
+          .select({ id: streaks.id, freezes: streaks.freezesAvailable })
+          .from(streaks)
+          .where(and(eq(streaks.userId, userId), isNull(streaks.lifeAreaId)))
+          .limit(1);
+        if (geral[0] && geral[0].freezes < FREEZES_MAX) {
+          await tx
+            .update(streaks)
+            .set({ freezesAvailable: geral[0].freezes + 1 })
+            .where(eq(streaks.id, geral[0].id));
+          freezeGanho = true;
+        }
+      }
+
       // 6c. Faíscas — namespace isolado do XP (ADR 0007): só wallet + ledger.
       if (sparksGanhas > 0) {
         await tx
@@ -399,6 +445,8 @@ export const actionRouter = router({
         tetoAplicado: grant.tetoAplicado,
         missoesCompletadas,
         sparksGanhas,
+        freezeGanho,
+        streakProtegido: streakGeral.freezeUsado || streakGeral.perdaoUsado,
       };
     });
   }),

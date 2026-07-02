@@ -106,3 +106,63 @@ export function aplicarAcaoNoStreak(
     previousDays: prev.currentCount,
   };
 }
+
+/** Dias de sequência a partir dos quais o perdão automático fica disponível (§5.3). */
+export const PERDAO_STREAK_MINIMO = 14;
+/** Máximo de Streak Freezes acumuláveis. */
+export const FREEZES_MAX = 2;
+
+export interface AmortecedorOpcoes {
+  /** Freezes disponíveis na conta (0–2). */
+  freezesAvailable: number;
+  /** Perdão automático disponível? (1 a cada 14 dias — controlado pelo chamador via grace_until). */
+  perdaoDisponivel: boolean;
+}
+
+export interface StreakResultadoAmortecido extends StreakResultado {
+  /** Consumiu um Streak Freeze para cobrir o dia perdido. */
+  freezeUsado: boolean;
+  /** Usou o perdão automático (grátis, streak ≥ 14 dias). */
+  perdaoUsado: boolean;
+}
+
+/**
+ * Versão com amortecedores (doc 13 §5.3): um ÚNICO dia perdido (gap = 2) pode
+ * ser absorvido — primeiro pelo perdão automático (grátis, exige sequência
+ * ≥ 14 dias), depois por um Streak Freeze. Gap maior que um dia quebra
+ * normalmente (freeze protege 1 dia, não férias — Modo Descanso cobre isso).
+ */
+export function aplicarAcaoComAmortecedores(
+  prev: StreakEstado | null,
+  hojeLocal: string,
+  op: AmortecedorOpcoes,
+): StreakResultadoAmortecido {
+  const semAmortecedor = { freezeUsado: false, perdaoUsado: false };
+
+  if (!prev || prev.lastActiveDate === null || prev.currentCount === 0) {
+    return { ...aplicarAcaoNoStreak(prev, hojeLocal), ...semAmortecedor };
+  }
+
+  const gap = diffDias(prev.lastActiveDate, hojeLocal);
+
+  // Exatamente 1 dia perdido → tenta absorver.
+  if (gap === 2) {
+    const perdoa = op.perdaoDisponivel && prev.currentCount >= PERDAO_STREAK_MINIMO;
+    const congela = !perdoa && op.freezesAvailable > 0;
+    if (perdoa || congela) {
+      const novo = prev.currentCount + 1;
+      return {
+        currentCount: novo,
+        longestCount: Math.max(prev.longestCount, novo),
+        lastActiveDate: hojeLocal,
+        extended: true,
+        broke: false,
+        previousDays: 0,
+        freezeUsado: congela,
+        perdaoUsado: perdoa,
+      };
+    }
+  }
+
+  return { ...aplicarAcaoNoStreak(prev, hojeLocal), ...semAmortecedor };
+}

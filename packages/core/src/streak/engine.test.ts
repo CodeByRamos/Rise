@@ -3,6 +3,7 @@ import {
   dataLocalISO,
   diffDias,
   aplicarAcaoNoStreak,
+  aplicarAcaoComAmortecedores,
 } from "./engine";
 
 describe("dataLocalISO — dia civil no fuso do usuário", () => {
@@ -75,5 +76,72 @@ describe("aplicarAcaoNoStreak", () => {
     );
     expect(r.currentCount).toBe(1);
     expect(r.longestCount).toBe(12);
+  });
+});
+
+describe("aplicarAcaoComAmortecedores (doc 13 §5.3)", () => {
+  const base = { currentCount: 20, longestCount: 20, lastActiveDate: "2026-06-30" }; // gap 2 p/ 07-02
+
+  it("perdão automático absorve 1 dia perdido quando streak ≥ 14", () => {
+    const r = aplicarAcaoComAmortecedores(base, "2026-07-02", {
+      freezesAvailable: 0,
+      perdaoDisponivel: true,
+    });
+    expect(r.currentCount).toBe(21);
+    expect(r.perdaoUsado).toBe(true);
+    expect(r.freezeUsado).toBe(false);
+    expect(r.broke).toBe(false);
+  });
+
+  it("freeze cobre quando perdão indisponível", () => {
+    const r = aplicarAcaoComAmortecedores(base, "2026-07-02", {
+      freezesAvailable: 1,
+      perdaoDisponivel: false,
+    });
+    expect(r.currentCount).toBe(21);
+    expect(r.freezeUsado).toBe(true);
+    expect(r.perdaoUsado).toBe(false);
+  });
+
+  it("perdão tem prioridade sobre freeze (grátis primeiro)", () => {
+    const r = aplicarAcaoComAmortecedores(base, "2026-07-02", {
+      freezesAvailable: 2,
+      perdaoDisponivel: true,
+    });
+    expect(r.perdaoUsado).toBe(true);
+    expect(r.freezeUsado).toBe(false);
+  });
+
+  it("streak < 14 não ganha perdão; sem freeze → quebra", () => {
+    const curto = { currentCount: 5, longestCount: 9, lastActiveDate: "2026-06-30" };
+    const r = aplicarAcaoComAmortecedores(curto, "2026-07-02", {
+      freezesAvailable: 0,
+      perdaoDisponivel: true,
+    });
+    expect(r.broke).toBe(true);
+    expect(r.currentCount).toBe(1);
+    expect(r.longestCount).toBe(9);
+  });
+
+  it("gap > 2 quebra mesmo com freeze e perdão (freeze protege 1 dia)", () => {
+    const r = aplicarAcaoComAmortecedores(
+      { currentCount: 30, longestCount: 30, lastActiveDate: "2026-06-25" },
+      "2026-07-02",
+      { freezesAvailable: 2, perdaoDisponivel: true },
+    );
+    expect(r.broke).toBe(true);
+    expect(r.currentCount).toBe(1);
+    expect(r.longestCount).toBe(30);
+  });
+
+  it("gap 1 (dia seguinte) segue normal, sem consumir nada", () => {
+    const ontem = { currentCount: 20, longestCount: 20, lastActiveDate: "2026-07-01" };
+    const r = aplicarAcaoComAmortecedores(ontem, "2026-07-02", {
+      freezesAvailable: 2,
+      perdaoDisponivel: true,
+    });
+    expect(r.currentCount).toBe(21);
+    expect(r.freezeUsado).toBe(false);
+    expect(r.perdaoUsado).toBe(false);
   });
 });
