@@ -24,6 +24,7 @@ const nf = new Intl.NumberFormat("pt-BR");
 interface Toast {
   id: number;
   amount: number;
+  rotulo?: string;
 }
 interface Celebracao {
   nome: string;
@@ -144,6 +145,7 @@ function DashboardInner({ displayName }: { displayName: string }) {
 
   const me = trpc.progress.me.useQuery(undefined, { enabled: booted });
   const diario = trpc.progress.diario.useQuery(undefined, { enabled: booted });
+  const missoes = trpc.mission.today.useQuery(undefined, { enabled: booted });
 
   const logAction = trpc.action.log.useMutation({
     onMutate: async (vars) => {
@@ -178,17 +180,31 @@ function DashboardInner({ displayName }: { displayName: string }) {
       setModalOpen(true);
     },
     onSuccess: (res, vars) => {
-      if (!res.deduped && res.leveledUp) {
+      if (res.deduped) return;
+      if (res.leveledUp) {
         const area = utils.progress.me
           .getData()
           ?.areas.find((a) => a.id === vars.lifeAreaId);
         setCel({ nome: area?.nome ?? "Área", nivel: res.areaLevel });
         window.setTimeout(() => setCel(null), 2400);
       }
+      // Missão concluída → toast extra com recompensa.
+      for (const m of res.missoesCompletadas ?? []) {
+        const id = ++toastId.current;
+        setToasts((t) => [
+          ...t,
+          { id, amount: m.xpReward, rotulo: `Missão: ${m.titulo} · +${m.sparksReward} ⚡` },
+        ]);
+        window.setTimeout(
+          () => setToasts((t) => t.filter((x) => x.id !== id)),
+          2200,
+        );
+      }
     },
     onSettled: () => {
       void utils.progress.me.invalidate();
       void utils.progress.diario.invalidate();
+      void utils.mission.today.invalidate();
     },
   });
 
@@ -291,6 +307,12 @@ function DashboardInner({ displayName }: { displayName: string }) {
         <header className="flex items-center justify-between">
           <RiseWordmark size={26} />
           <div className="flex items-center gap-2.5">
+            <span
+              className="tnum inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] border border-line bg-surface px-3.5 py-1.5 text-xs font-semibold text-snow"
+              title="Faíscas — moeda cosmética (nunca compra progresso)"
+            >
+              ⚡ {nf.format(d.sparks)}
+            </span>
             <button
               type="button"
               onClick={() => void sair()}
@@ -352,6 +374,63 @@ function DashboardInner({ displayName }: { displayName: string }) {
           </div>
         </section>
 
+        {/* Missões de hoje */}
+        {(missoes.data?.length ?? 0) > 0 && (
+          <section
+            className="animate-rise-in mt-10"
+            style={{ animationDelay: "90ms" }}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-faint">
+                Missões de hoje
+              </h2>
+              <span className="tnum text-xs text-muted">
+                {missoes.data!.filter((m) => m.completa).length}/
+                {missoes.data!.length} completas
+              </span>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {missoes.data!.map((m) => (
+                <div
+                  key={m.id}
+                  className={`rounded-[var(--radius-card)] border p-4 ${
+                    m.completa
+                      ? "border-[color-mix(in_srgb,var(--color-brand)_45%,transparent)] bg-brand/5"
+                      : "border-line bg-surface"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-semibold leading-snug text-snow">
+                      {m.titulo}
+                    </p>
+                    {m.completa && (
+                      <span aria-label="completa" className="text-brand">
+                        ✓
+                      </span>
+                    )}
+                  </div>
+                  <div className="tnum mt-2 flex items-center justify-between text-xs text-muted">
+                    <span>
+                      {m.progress}/{m.target}
+                    </span>
+                    <span className="font-semibold text-brand">
+                      +{m.xpReward} XP · +{m.sparksReward} ⚡
+                    </span>
+                  </div>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-graphite">
+                    <div
+                      className="h-full rounded-full bg-brand transition-[width] duration-500"
+                      style={{
+                        width: `${Math.round((m.progress / m.target) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         <section
           className="animate-rise-in mt-10"
           style={{ animationDelay: "120ms" }}
@@ -405,10 +484,15 @@ function DashboardInner({ displayName }: { displayName: string }) {
         {toasts.map((t) => (
           <span
             key={t.id}
-            className="animate-float-up font-display tnum text-2xl font-semibold text-brand"
+            className="animate-float-up flex flex-col items-end"
             style={{ textShadow: "0 0 12px rgba(16,185,129,0.55)" }}
           >
-            +{t.amount} XP
+            <span className="font-display tnum text-2xl font-semibold text-brand">
+              +{t.amount} XP
+            </span>
+            {t.rotulo && (
+              <span className="text-xs font-medium text-snow">{t.rotulo}</span>
+            )}
           </span>
         ))}
       </div>

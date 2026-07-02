@@ -27,3 +27,7 @@ export const streakState = pgEnum("streak_state", [
   "broken",
   "resting",
 ]);
+export const missionStatus = pgEnum("mission_status", [
+  "pending",
+  "completed",
+]);

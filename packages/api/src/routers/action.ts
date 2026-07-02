@@ -8,6 +8,9 @@ import {
   xpEvents,
   streaks,
   userStats,
+  userMissions,
+  sparksWallet,
+  sparksLedger,
   outbox,
   LIFE_AREA_CATALOG,
 } from "@rise/db";
@@ -152,11 +155,37 @@ export const actionRouter = router({
       const streakArea = await aplicarStreak(area.id);
       const streakGeral = await aplicarStreak(null);
 
+      // 3b. Missões do dia pendentes — quais esta ação avança? (doc 13 §6.1)
+      const missoesPendentes = await tx
+        .select()
+        .from(userMissions)
+        .where(
+          and(
+            eq(userMissions.userId, userId),
+            eq(userMissions.assignedDate, hojeLocal),
+            eq(userMissions.status, "pending"),
+          ),
+        );
+      const avancam = missoesPendentes.filter((m) => {
+        if (m.metric === "acoes") return true;
+        if (m.metric === "areas_distintas") {
+          const vistas = (m.payload as { areas?: string[] }).areas ?? [];
+          return !vistas.includes(area.id);
+        }
+        if (m.metric === "nota_longa") {
+          return (input.note?.length ?? 0) >= 50;
+        }
+        return false;
+      });
+      // Bônus pontual aplica a UMA missão só (anti-empilhamento).
+      const multMissao = avancam.length > 0 ? 1.5 : 1.0;
+
       // 4. Domínio decide o XP — com o streak da área JÁ estendido por hoje.
       const grant = computarConcessao({
         baseAcao: baseXpDaArea(area.catalogId),
         multDificuldade: input.intensity,
         streakDias: streakArea.currentCount,
+        multMissao,
         totalXpAtual: area.totalXp,
       });
 
@@ -189,12 +218,101 @@ export const actionRouter = router({
         idempotencyKey: `act:${input.clientActionId}`,
       });
 
+      // 6b. Avança missões; conclui as que bateram a meta (XP + Faíscas).
+      const missoesCompletadas: {
+        titulo: string;
+        xpReward: number;
+        sparksReward: number;
+      }[] = [];
+      let xpBonusMissoes = 0;
+      let sparksGanhas = 0;
+      for (const m of avancam) {
+        const novoPayload =
+          m.metric === "areas_distintas"
+            ? {
+                ...(m.payload as Record<string, unknown>),
+                areas: [
+                  ...((m.payload as { areas?: string[] }).areas ?? []),
+                  area.id,
+                ],
+              }
+            : (m.payload as Record<string, unknown>);
+        const novoProgress = m.progress + 1;
+        const completou = novoProgress >= m.target;
+        await tx
+          .update(userMissions)
+          .set({
+            progress: novoProgress,
+            payload: novoPayload,
+            ...(completou
+              ? { status: "completed" as const, completedAt: sql`now()` }
+              : {}),
+          })
+          .where(eq(userMissions.id, m.id));
+
+        if (completou) {
+          missoesCompletadas.push({
+            titulo: m.title,
+            xpReward: m.xpReward,
+            sparksReward: m.sparksReward,
+          });
+          xpBonusMissoes += m.xpReward;
+          sparksGanhas += m.sparksReward;
+          // XP da missão entra no ledger (crédito na área da ação que concluiu).
+          await tx.insert(xpEvents).values({
+            userId,
+            lifeAreaId: area.id,
+            actionLogId,
+            eventType: "xp.granted",
+            amount: m.xpReward,
+            baseAmount: m.xpReward,
+            streakMult: "1.00",
+            idempotencyKey: `mission:${m.id}`,
+          });
+          await tx.insert(outbox).values({
+            eventType: "mission.completed",
+            payload: {
+              userId,
+              missionId: m.id,
+              xpReward: m.xpReward,
+              sparksReward: m.sparksReward,
+            },
+          });
+        }
+      }
+
+      // 6c. Faíscas — namespace isolado do XP (ADR 0007): só wallet + ledger.
+      if (sparksGanhas > 0) {
+        await tx
+          .insert(sparksWallet)
+          .values({ userId, balance: sparksGanhas })
+          .onConflictDoUpdate({
+            target: sparksWallet.userId,
+            set: {
+              balance: sql`${sparksWallet.balance} + ${sparksGanhas}`,
+              updatedAt: sql`now()`,
+            },
+          });
+        await tx.insert(sparksLedger).values({
+          userId,
+          delta: sparksGanhas,
+          reason: "mission_reward",
+        });
+        await tx.insert(outbox).values({
+          eventType: "sparks.earned",
+          payload: { userId, amount: sparksGanhas, source: "mission" },
+        });
+      }
+
       // 7. Projeção da área (recomputável do ledger; cache p/ leitura).
+      const totalXpFinal = grant.totalXpNovo + xpBonusMissoes;
+      const nivelFinal = nivelDeArea(totalXpFinal);
+      const leveledUp = nivelFinal > grant.nivelAnterior;
       await tx
         .update(lifeAreas)
         .set({
-          totalXp: grant.totalXpNovo,
-          level: nivelDeArea(grant.totalXpNovo),
+          totalXp: totalXpFinal,
+          level: nivelFinal,
         })
         .where(eq(lifeAreas.id, area.id));
 
@@ -236,14 +354,14 @@ export const actionRouter = router({
           actionLogId,
         },
       });
-      if (grant.subiuNivel) {
+      if (leveledUp) {
         await tx.insert(outbox).values({
           eventType: "level.up",
           payload: {
             userId,
             lifeAreaId: area.id,
             fromLevel: grant.nivelAnterior,
-            toLevel: grant.nivelNovo,
+            toLevel: nivelFinal,
           },
         });
       }
@@ -272,13 +390,15 @@ export const actionRouter = router({
 
       return {
         deduped: false as const,
-        xpGained: grant.amount,
-        areaLevel: grant.nivelNovo,
-        leveledUp: grant.subiuNivel,
+        xpGained: grant.amount + xpBonusMissoes,
+        areaLevel: nivelFinal,
+        leveledUp,
         riseLevel: rise.nivelRise,
         streakDias: streakGeral.currentCount,
         streakAreaDias: streakArea.currentCount,
         tetoAplicado: grant.tetoAplicado,
+        missoesCompletadas,
+        sparksGanhas,
       };
     });
   }),

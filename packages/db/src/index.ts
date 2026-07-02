@@ -9,3 +9,5 @@ export * from "./schema";
 export * from "./client";
 export { LIFE_AREA_CATALOG } from "./seed/life-area-catalog";
 export type { LifeAreaCatalogSeed } from "./seed/life-area-catalog";
+export { MISSION_TEMPLATES } from "./seed/mission-templates";
+export type { MissionTemplate } from "./seed/mission-templates";

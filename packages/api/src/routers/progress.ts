@@ -144,10 +144,17 @@ export const progressRouter = router({
       })),
     );
 
+    const walletRows = await ctx.db
+      .select({ balance: sparksWallet.balance })
+      .from(sparksWallet)
+      .where(eq(sparksWallet.userId, userId))
+      .limit(1);
+
     return {
       riseLevel: rise.nivelRise,
       totalXp: rise.xpRise,
       activeAreas: rise.areasAtivas,
+      sparks: walletRows[0]?.balance ?? 0,
       streakDias: streakRows[0]?.current ?? 0,
       areas: areasRows.map((a) => {
         const p = progressoNoNivel(a.totalXp);
