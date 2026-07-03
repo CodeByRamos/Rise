@@ -1,7 +1,14 @@
 import { z } from "zod";
 import { and, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { users, profiles, inventory, cosmeticItems } from "@rise/db";
+import {
+  users,
+  profiles,
+  inventory,
+  cosmeticItems,
+  userAchievements,
+} from "@rise/db";
+import { ACHIEVEMENT_CATALOG } from "@rise/core";
 import { router, protectedProcedure } from "../trpc";
 
 export const profileRouter = router({
@@ -38,6 +45,22 @@ export const profileRouter = router({
       .where(eq(inventory.userId, userId));
 
     return { ...p, owned };
+  }),
+
+  /** Catálogo completo de conquistas com estado (critérios sempre visíveis). */
+  achievements: protectedProcedure.query(async ({ ctx }) => {
+    const rows = await ctx.db
+      .select({
+        id: userAchievements.achievementId,
+        unlockedAt: userAchievements.unlockedAt,
+      })
+      .from(userAchievements)
+      .where(eq(userAchievements.userId, ctx.userId));
+    const unlocked = new Map(rows.map((r) => [r.id, r.unlockedAt]));
+    return ACHIEVEMENT_CATALOG.map((a) => ({
+      ...a,
+      unlockedAt: unlocked.get(a.id) ?? null,
+    }));
   }),
 
   /** Atualiza nome, bio e/ou avatar (caminho no bucket público `avatars`). */

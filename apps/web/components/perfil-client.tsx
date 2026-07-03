@@ -4,7 +4,14 @@ import { useState, type FormEvent } from "react";
 import { trpc } from "@/lib/trpc/react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Avatar } from "./avatar";
-import { CameraIcon, CheckIcon } from "./icons";
+import { CameraIcon, CheckIcon, LockIcon } from "./icons";
+
+const COR_RARIDADE: Record<string, string> = {
+  comum: "var(--color-muted)",
+  rara: "#60a5fa",
+  epica: "#a78bfa",
+  lendaria: "#fbbf24",
+};
 
 async function uploadAvatar(file: File): Promise<string> {
   const supabase = createSupabaseBrowserClient();
@@ -148,6 +155,9 @@ export function PerfilClient() {
         </form>
       </section>
 
+      {/* Conquistas */}
+      <Conquistas />
+
       {/* Modo Descanso */}
       <ModoDescanso />
 
@@ -183,6 +193,76 @@ export function PerfilClient() {
         )}
       </section>
     </div>
+  );
+}
+
+function Conquistas() {
+  const conquistas = trpc.profile.achievements.useQuery();
+  if (!conquistas.data) {
+    return <div className="h-40 animate-pulse rounded-[20px] bg-surface" />;
+  }
+  const desbloqueadas = conquistas.data.filter((c) => c.unlockedAt);
+  const bloqueadas = conquistas.data.filter((c) => !c.unlockedAt);
+
+  return (
+    <section>
+      <div className="flex items-baseline justify-between">
+        <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-faint">
+          Conquistas
+        </h2>
+        <span className="tnum text-xs text-muted">
+          {desbloqueadas.length}/{conquistas.data.length}
+        </span>
+      </div>
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {desbloqueadas.map((c) => {
+          const cor = COR_RARIDADE[c.raridade] ?? "var(--color-muted)";
+          return (
+            <div
+              key={c.id}
+              className="rounded-[var(--radius-card)] border border-line bg-surface p-4"
+              style={{
+                boxShadow: `inset 3px 0 0 0 ${cor}`,
+              }}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-snow">{c.nome}</p>
+                <span
+                  className="shrink-0 text-[10px] font-semibold uppercase tracking-wider"
+                  style={{ color: cor }}
+                >
+                  {c.raridade}
+                </span>
+              </div>
+              <p className="mt-1 text-xs leading-relaxed text-muted">
+                {c.criterio}
+              </p>
+              <p className="tnum mt-1.5 text-[11px] text-faint">
+                {new Date(c.unlockedAt!).toLocaleDateString("pt-BR", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </p>
+            </div>
+          );
+        })}
+        {bloqueadas.map((c) => (
+          <div
+            key={c.id}
+            className="rounded-[var(--radius-card)] border border-dashed border-line bg-surface p-4 opacity-60"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-semibold text-muted">{c.nome}</p>
+              <LockIcon size={13} className="shrink-0 text-faint" />
+            </div>
+            <p className="mt-1 text-xs leading-relaxed text-faint">
+              {c.criterio}
+            </p>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

@@ -8,6 +8,7 @@ import {
   timestamp,
   uniqueIndex,
   index,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 import { users } from "./identity";
 import { lifeAreas } from "./progress";
@@ -74,4 +75,20 @@ export const userMissions = pgTable(
     uniqueIndex("user_missions_day_uq").on(t.userId, t.templateId, t.assignedDate),
     index("user_missions_user_day_idx").on(t.userId, t.assignedDate, t.status),
   ],
+);
+
+// Conquistas desbloqueadas — PERMANENTES (doc 13: o que sobe, fica).
+// Catálogo/critérios vivem em @rise/core (ACHIEVEMENT_CATALOG).
+export const userAchievements = pgTable(
+  "user_achievements",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    achievementId: text("achievement_id").notNull(), // slug do catálogo
+    unlockedAt: timestamp("unlocked_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.achievementId] })],
 );

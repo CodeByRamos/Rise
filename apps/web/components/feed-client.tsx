@@ -28,6 +28,9 @@ function fraseDoMarco(type: string, payload: Record<string, unknown>): string {
   if (type === "missions.day") {
     return `completou todas as missões do dia`;
   }
+  if (type === "achievement") {
+    return `desbloqueou a conquista "${payload.nome}"`;
+  }
   return "registrou um marco de evolução";
 }
 

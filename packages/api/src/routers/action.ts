@@ -10,6 +10,7 @@ import {
   streaks,
   userStats,
   userMissions,
+  userAchievements,
   sparksWallet,
   sparksLedger,
   feedItems,
@@ -21,6 +22,7 @@ import {
   nivelDeArea,
   dataLocalISO,
   aplicarAcaoComAmortecedores,
+  avaliarConquistas,
   FREEZES_MAX,
   type StreakResultadoAmortecido,
 } from "@rise/core";
@@ -453,6 +455,43 @@ export const actionRouter = router({
           payload: { total: missoesPendentes.length },
         });
       }
+
+      // 9c. Conquistas — avalia critérios com a fotografia PÓS-ação.
+      const acoesCount = await tx
+        .select({ n: sql<number>`count(*)::int` })
+        .from(actionLogs)
+        .where(eq(actionLogs.userId, userId));
+      const desbloqueadasRows = await tx
+        .select({ id: userAchievements.achievementId })
+        .from(userAchievements)
+        .where(eq(userAchievements.userId, userId));
+      const novasConquistas = avaliarConquistas(
+        {
+          streakAtual: streakGeral.currentCount,
+          niveisAreas: todas.map((a) => a.level),
+          totalAcoes: acoesCount[0]?.n ?? 0,
+          xpTotal: rise.xpRise,
+          diaPerfeito:
+            missoesCompletadas.length > 0 &&
+            missoesPendentes.length - missoesCompletadas.length === 0,
+        },
+        new Set(desbloqueadasRows.map((r) => r.id)),
+      );
+      for (const c of novasConquistas) {
+        await tx
+          .insert(userAchievements)
+          .values({ userId, achievementId: c.id })
+          .onConflictDoNothing();
+        await tx.insert(outbox).values({
+          eventType: "achievement.unlocked",
+          payload: { userId, achievementId: c.id, category: c.categoria, rarity: c.raridade },
+        });
+        await tx.insert(feedItems).values({
+          userId,
+          type: "achievement",
+          payload: { nome: c.nome, raridade: c.raridade },
+        });
+      }
       if (streakGeral.broke) {
         await tx.insert(outbox).values({
           eventType: "streak.broken",
@@ -489,6 +528,11 @@ export const actionRouter = router({
         sparksGanhas,
         freezeGanho,
         streakProtegido: streakGeral.freezeUsado || streakGeral.perdaoUsado,
+        conquistas: novasConquistas.map((c) => ({
+          id: c.id,
+          nome: c.nome,
+          raridade: c.raridade,
+        })),
       };
     });
   }),

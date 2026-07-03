@@ -196,6 +196,18 @@ function DashboardInner({ displayName }: { displayName: string }) {
           2200,
         );
       }
+      // Conquista desbloqueada → toast dedicado.
+      for (const c of res.conquistas ?? []) {
+        const id = ++toastId.current;
+        setToasts((t) => [
+          ...t,
+          { id, amount: 0, rotulo: `Conquista desbloqueada: ${c.nome}` },
+        ]);
+        window.setTimeout(
+          () => setToasts((t) => t.filter((x) => x.id !== id)),
+          2600,
+        );
+      }
       // Missão concluída → toast extra com recompensa.
       for (const m of res.missoesCompletadas ?? []) {
         const id = ++toastId.current;

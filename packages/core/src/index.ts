@@ -13,4 +13,5 @@ export * from "./streak/streak";
 export * from "./streak/engine";
 export * from "./level/rise-level";
 export * from "./skill/tree";
+export * from "./achievement/catalog";
 export * from "./events";
