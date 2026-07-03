@@ -47,10 +47,11 @@ export const profiles = pgTable(
       .primaryKey()
       .references(() => users.id),
     displayName: text("display_name").notNull(),
-    avatarUrl: text("avatar_url"),
+    avatarUrl: text("avatar_url"), // caminho no bucket público `avatars`
     bio: text("bio"),
-    equippedThemeId: uuid("equipped_theme_id"), // FK cosmetic_items (Fase 2)
-    equippedFrameId: uuid("equipped_frame_id"),
+    // Slugs de cosmetic_items (FK adicionada via SQL na migração — evita ciclo de import).
+    equippedThemeId: text("equipped_theme_id"),
+    equippedFrameId: text("equipped_frame_id"),
     equippedBadgeId: uuid("equipped_badge_id"),
     isSearchable: boolean("is_searchable").default(true).notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })

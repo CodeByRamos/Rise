@@ -17,4 +17,5 @@ export * from "./progress";
 export * from "./xp";
 export * from "./gamification";
 export * from "./economy";
+export * from "./cosmetics";
 export * from "./platform";

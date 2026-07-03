@@ -11,6 +11,7 @@ import {
   streaks,
   actionLogs,
   xpEvents,
+  cosmeticItems,
   LIFE_AREA_CATALOG,
 } from "@rise/db";
 import { progressoNoNivel, nivelDeArea, calcularNivelRise } from "@rise/core";
@@ -154,7 +155,36 @@ export const progressRouter = router({
       .where(eq(sparksWallet.userId, userId))
       .limit(1);
 
+    const perfilRows = await ctx.db
+      .select({
+        avatarUrl: profiles.avatarUrl,
+        equippedFrameId: profiles.equippedFrameId,
+        equippedThemeId: profiles.equippedThemeId,
+      })
+      .from(profiles)
+      .where(eq(profiles.userId, userId))
+      .limit(1);
+    const perfil = perfilRows[0];
+    let framePreview: Record<string, unknown> | null = null;
+    let themePreview: Record<string, unknown> | null = null;
+    if (perfil?.equippedFrameId || perfil?.equippedThemeId) {
+      const ids = [perfil.equippedFrameId, perfil.equippedThemeId].filter(
+        (x): x is string => !!x,
+      );
+      const itens = await ctx.db
+        .select({ id: cosmeticItems.id, preview: cosmeticItems.preview })
+        .from(cosmeticItems)
+        .where(inArray(cosmeticItems.id, ids));
+      framePreview =
+        itens.find((i) => i.id === perfil.equippedFrameId)?.preview ?? null;
+      themePreview =
+        itens.find((i) => i.id === perfil.equippedThemeId)?.preview ?? null;
+    }
+
     return {
+      avatarUrl: perfil?.avatarUrl ?? null,
+      framePreview,
+      themePreview,
       riseLevel: rise.nivelRise,
       totalXp: rise.xpRise,
       activeAreas: rise.areasAtivas,

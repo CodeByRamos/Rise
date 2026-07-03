@@ -18,6 +18,8 @@ import { RiseMark, RiseWordmark } from "./rise-mark";
 import { LevelRing } from "./level-ring";
 import { AreaCard, cssColor } from "./area-card";
 import { Diario } from "./diario";
+import { Avatar } from "./avatar";
+import { AppNav } from "./app-nav";
 import { SparkIcon, CheckIcon, XIcon, CameraIcon, PlusIcon } from "./icons";
 
 const nf = new Intl.NumberFormat("pt-BR");
@@ -303,8 +305,20 @@ function DashboardInner({ displayName }: { displayName: string }) {
   );
   const areaDoModal = d.areas.find((a) => a.id === modalArea) ?? null;
 
+  const tema = d.themePreview as { accent?: string; strong?: string } | null;
+
   return (
-    <main className="relative min-h-dvh overflow-hidden">
+    <main
+      className="relative min-h-dvh overflow-hidden"
+      style={
+        tema?.accent
+          ? ({
+              "--color-brand": tema.accent,
+              "--color-brand-strong": tema.strong ?? tema.accent,
+            } as React.CSSProperties)
+          : undefined
+      }
+    >
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-[520px]"
@@ -315,8 +329,9 @@ function DashboardInner({ displayName }: { displayName: string }) {
       />
 
       <div className="relative mx-auto w-full max-w-5xl px-5 pb-28 pt-6">
-        <header className="flex items-center justify-between">
+        <header className="flex flex-wrap items-center justify-between gap-3">
           <RiseWordmark size={26} />
+          <AppNav />
           <div className="flex items-center gap-2.5">
             <span
               className="tnum inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] border border-line bg-surface px-3.5 py-1.5 text-xs font-semibold text-snow"
@@ -332,9 +347,12 @@ function DashboardInner({ displayName }: { displayName: string }) {
             >
               Sair
             </button>
-            <span className="inline-flex size-9 items-center justify-center rounded-full bg-brand text-sm font-bold uppercase text-void">
-              {displayName.charAt(0)}
-            </span>
+            <Avatar
+              nome={displayName}
+              avatarPath={d.avatarUrl}
+              frameColors={(d.framePreview as { colors?: string[] } | null)?.colors}
+              size={36}
+            />
           </div>
         </header>
 

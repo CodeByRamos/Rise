@@ -11,3 +11,5 @@ export { LIFE_AREA_CATALOG } from "./seed/life-area-catalog";
 export type { LifeAreaCatalogSeed } from "./seed/life-area-catalog";
 export { MISSION_TEMPLATES } from "./seed/mission-templates";
 export type { MissionTemplate } from "./seed/mission-templates";
+export { COSMETIC_CATALOG } from "./seed/cosmetics";
+export type { CosmeticSeed } from "./seed/cosmetics";

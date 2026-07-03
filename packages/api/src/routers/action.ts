@@ -11,6 +11,7 @@ import {
   userMissions,
   sparksWallet,
   sparksLedger,
+  feedItems,
   outbox,
   LIFE_AREA_CATALOG,
 } from "@rise/db";
@@ -409,6 +410,36 @@ export const actionRouter = router({
             fromLevel: grant.nivelAnterior,
             toLevel: nivelFinal,
           },
+        });
+      }
+
+      // 9b. Feed de MARCOS (nunca a prova em si — privacidade por design).
+      const MARCOS_STREAK = [3, 7, 14, 30, 50, 100, 200, 365];
+      if (leveledUp) {
+        await tx.insert(feedItems).values({
+          userId,
+          type: "level.up",
+          payload: { area: area.name, toLevel: nivelFinal },
+        });
+      }
+      if (
+        streakGeral.extended &&
+        MARCOS_STREAK.includes(streakGeral.currentCount)
+      ) {
+        await tx.insert(feedItems).values({
+          userId,
+          type: "streak.milestone",
+          payload: { days: streakGeral.currentCount },
+        });
+      }
+      if (
+        missoesCompletadas.length > 0 &&
+        missoesPendentes.length - missoesCompletadas.length === 0
+      ) {
+        await tx.insert(feedItems).values({
+          userId,
+          type: "missions.day",
+          payload: { total: missoesPendentes.length },
         });
       }
       if (streakGeral.broke) {
