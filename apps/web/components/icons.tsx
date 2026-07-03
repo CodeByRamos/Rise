@@ -63,3 +63,21 @@ export function PlusIcon({ size = 22, className }: IconProps) {
     </svg>
   );
 }
+
+/** Chevron da marca — usado na reação "Força" e em indicadores de subida. */
+export function ChevronUpIcon({ size = 16, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className}>
+      <path d="M5 15 12 8l7 7" strokeWidth={2.6} />
+    </svg>
+  );
+}
+
+export function LockIcon({ size = 14, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className}>
+      <rect x="5.5" y="10.5" width="13" height="9" rx="2" />
+      <path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" />
+    </svg>
+  );
+}

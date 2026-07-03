@@ -3,6 +3,7 @@
 import { trpc } from "@/lib/trpc/react";
 import { Avatar } from "./avatar";
 import { RiseMark } from "./rise-mark";
+import { ChevronUpIcon } from "./icons";
 
 function tempoRelativo(data: string | Date): string {
   const d = typeof data === "string" ? new Date(data) : data;
@@ -31,7 +32,34 @@ function fraseDoMarco(type: string, payload: Record<string, unknown>): string {
 }
 
 export function FeedClient() {
+  const utils = trpc.useUtils();
   const feed = trpc.feed.list.useQuery();
+  const react = trpc.feed.react.useMutation({
+    onMutate: async (vars) => {
+      // Toggle otimista.
+      await utils.feed.list.cancel();
+      const prev = utils.feed.list.getData();
+      if (prev) {
+        utils.feed.list.setData(
+          undefined,
+          prev.map((i) =>
+            i.id === vars.feedItemId
+              ? {
+                  ...i,
+                  deiForca: !i.deiForca,
+                  forcas: i.forcas + (i.deiForca ? -1 : 1),
+                }
+              : i,
+          ),
+        );
+      }
+      return { prev };
+    },
+    onError: (_e, _v, ctx2) => {
+      if (ctx2?.prev) utils.feed.list.setData(undefined, ctx2.prev);
+    },
+    onSettled: () => void utils.feed.list.invalidate(),
+  });
 
   if (!feed.data) {
     return <div className="h-72 animate-pulse rounded-[20px] bg-surface" />;
@@ -73,6 +101,20 @@ export function FeedClient() {
               {tempoRelativo(item.createdAt)}
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => react.mutate({ feedItemId: item.id })}
+            aria-pressed={item.deiForca}
+            aria-label={item.deiForca ? "Retirar força" : "Dar força"}
+            className={`tnum inline-flex shrink-0 items-center gap-1.5 rounded-[var(--radius-pill)] border px-3 py-1.5 text-xs font-semibold transition-colors ${
+              item.deiForca
+                ? "border-brand bg-brand/10 text-brand"
+                : "border-line bg-surface text-muted hover:text-snow"
+            }`}
+          >
+            <ChevronUpIcon size={13} />
+            {item.forcas > 0 ? item.forcas : "Força"}
+          </button>
         </li>
       ))}
     </ol>

@@ -6,6 +6,7 @@ import {
   jsonb,
   boolean,
   bigserial,
+  bigint,
   timestamp,
   primaryKey,
   index,
@@ -60,4 +61,21 @@ export const feedItems = pgTable(
       .notNull(),
   },
   (t) => [index("feed_items_created_idx").on(t.createdAt)],
+);
+
+// Reações — APENAS positivas ("Força", o chevron da marca). Sem dislike (doc 08).
+export const reactions = pgTable(
+  "reactions",
+  {
+    feedItemId: bigint("feed_item_id", { mode: "number" })
+      .notNull()
+      .references(() => feedItems.id),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.feedItemId, t.userId] })],
 );

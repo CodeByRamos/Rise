@@ -29,6 +29,13 @@
       "when": 1783086210205,
       "tag": "0003_yellow_korvac",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1783087391427,
+      "tag": "0004_tan_the_hood",
+      "breakpoints": true
     }
   ]
 }
