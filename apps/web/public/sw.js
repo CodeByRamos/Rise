@@ -11,7 +11,6 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
 
-// Passthrough: garante fetch handler (instalabilidade) sem interferir no app.
-self.addEventListener("fetch", (event) => {
-  event.respondWith(fetch(event.request));
-});
+// Handler presente (instalabilidade) mas SEM respondWith: o browser segue a
+// rede normalmente. respondWith(fetch(...)) quebrava streaming de RSC.
+self.addEventListener("fetch", () => {});

@@ -1,12 +1,21 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { RiseWordmark } from "@/components/rise-mark";
 import { AuthForm } from "@/components/auth-form";
 
 export const metadata: Metadata = {
-  title: "Rise — Entrar",
+  title: "Entrar",
 };
 
-export default function EntrarPage() {
+export default async function EntrarPage() {
+  // Já logado → direto para o dashboard.
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL?.startsWith("http")) {
+    const supabase = await createSupabaseServerClient();
+    const { data } = await supabase.auth.getUser();
+    if (data.user) redirect("/");
+  }
+
   return (
     <main className="relative flex min-h-dvh items-center justify-center overflow-hidden px-5">
       <div

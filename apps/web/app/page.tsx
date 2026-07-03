@@ -1,7 +1,6 @@
-import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { DashboardClient } from "@/components/dashboard-client";
 import { DashboardLive } from "@/components/dashboard-live";
+import { Landing } from "@/components/landing";
 
 // Sessão vem dos cookies → rota dinâmica.
 export const dynamic = "force-dynamic";
@@ -11,12 +10,12 @@ export default async function Home() {
     process.env.NEXT_PUBLIC_SUPABASE_URL?.startsWith("http") === true &&
     !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // Sem Supabase (CI/preview sem segredos): modo demonstração local.
-  if (!configurado) return <DashboardClient />;
+  // Sem Supabase (CI/preview sem segredos): landing pública.
+  if (!configurado) return <Landing />;
 
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase.auth.getUser();
-  if (!data.user) redirect("/entrar");
+  if (!data.user) return <Landing />;
 
   const nome =
     (data.user.user_metadata?.display_name as string | undefined) ??

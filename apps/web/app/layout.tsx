@@ -21,9 +21,12 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "Rise — Minha Evolução",
+  title: {
+    default: "Rise — o videogame da vida real",
+    template: "%s · Rise",
+  },
   description:
-    "Rise é o videogame da vida real. Toda ação positiva gera progresso.",
+    "Toda ação positiva vira progresso: XP, níveis, sequências e missões nas áreas da vida que importam para você. Com prova.",
   appleWebApp: {
     capable: true,
     title: "Rise",
