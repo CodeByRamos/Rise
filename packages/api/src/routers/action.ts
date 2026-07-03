@@ -3,6 +3,7 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import {
   users,
+  userSettings,
   actionLogs,
   lifeAreas,
   xpEvents,
@@ -96,6 +97,15 @@ export const actionRouter = router({
       const timezone = userRows[0]?.timezone ?? "America/Sao_Paulo";
       const hojeLocal = dataLocalISO(new Date(), timezone);
 
+      // Modo Descanso ativo/recente → dias cobertos não quebram a sequência.
+      const settingsRows = await tx
+        .select({ restModeUntil: userSettings.restModeUntil })
+        .from(userSettings)
+        .where(eq(userSettings.userId, userId))
+        .limit(1);
+      const restUntil = settingsRows[0]?.restModeUntil ?? null;
+      const descansoAte = restUntil ? dataLocalISO(restUntil, timezone) : null;
+
       const areaRows = await tx
         .select()
         .from(lifeAreas)
@@ -137,6 +147,7 @@ export const actionRouter = router({
           {
             freezesAvailable: atual?.freezesAvailable ?? 0,
             perdaoDisponivel,
+            descansoAte,
           },
         );
         if (atual) {

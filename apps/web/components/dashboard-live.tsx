@@ -363,6 +363,16 @@ function DashboardInner({ displayName }: { displayName: string }) {
           <p className="mt-2 text-base text-muted">
             Toda ação conta. Toda evolução aparece — com prova.
           </p>
+          {d.restModeUntil && (
+            <p className="mt-3 inline-flex rounded-[var(--radius-pill)] border border-line bg-surface px-3.5 py-1.5 text-xs font-medium text-muted">
+              Modo Descanso até{" "}
+              {new Date(d.restModeUntil).toLocaleDateString("pt-BR", {
+                day: "2-digit",
+                month: "short",
+              })}{" "}
+              — sua sequência está protegida.
+            </p>
+          )}
         </section>
 
         <section

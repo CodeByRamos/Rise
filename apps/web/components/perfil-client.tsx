@@ -148,6 +148,9 @@ export function PerfilClient() {
         </form>
       </section>
 
+      {/* Modo Descanso */}
+      <ModoDescanso />
+
       {/* Cosméticos possuídos */}
       <section>
         <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-faint">
@@ -180,6 +183,60 @@ export function PerfilClient() {
         )}
       </section>
     </div>
+  );
+}
+
+function ModoDescanso() {
+  const utils = trpc.useUtils();
+  const me = trpc.progress.me.useQuery();
+  const toggle = trpc.progress.restMode.useMutation({
+    onSettled: () => void utils.progress.me.invalidate(),
+  });
+  const ativo = me.data?.restModeUntil
+    ? new Date(me.data.restModeUntil)
+    : null;
+
+  return (
+    <section className="rounded-[24px] border border-line bg-surface-2 p-6">
+      <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-faint">
+        Modo Descanso
+      </h2>
+      <p className="mt-2 text-sm leading-relaxed text-muted">
+        Viagem, doença, vida acontecendo? Pause de propósito: sua sequência{" "}
+        <span className="font-semibold text-snow">congela em vez de quebrar</span>{" "}
+        — sem custo, sem culpa. Descanso também é evolução.
+      </p>
+      {ativo ? (
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <span className="rounded-[var(--radius-pill)] border border-brand bg-brand/10 px-3.5 py-2 text-xs font-semibold text-brand">
+            Ativo até{" "}
+            {ativo.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+          </span>
+          <button
+            type="button"
+            disabled={toggle.isPending}
+            onClick={() => toggle.mutate({ ateDias: null })}
+            className="rounded-xl border border-line bg-surface px-4 py-2 text-xs font-semibold text-muted transition-colors hover:text-snow disabled:opacity-50"
+          >
+            Voltar da pausa
+          </button>
+        </div>
+      ) : (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {[3, 7, 14].map((d) => (
+            <button
+              key={d}
+              type="button"
+              disabled={toggle.isPending}
+              onClick={() => toggle.mutate({ ateDias: d })}
+              className="rounded-xl border border-line bg-surface px-4 py-2 text-xs font-semibold text-muted transition-colors hover:border-brand hover:text-snow disabled:opacity-50"
+            >
+              Pausar {d} dias
+            </button>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 

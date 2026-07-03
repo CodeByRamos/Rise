@@ -15,6 +15,8 @@ import {
   LIFE_AREA_CATALOG,
 } from "@rise/db";
 import { progressoNoNivel, nivelDeArea, calcularNivelRise } from "@rise/core";
+import { sql as dsql } from "drizzle-orm";
+import { outbox } from "@rise/db";
 import { router, protectedProcedure } from "../trpc";
 
 // XP-base por área do catálogo (para o optimistic UI do cliente).
@@ -94,6 +96,31 @@ export const progressRouter = router({
     }),
 
   /**
+   * Modo Descanso (doc 13 §5.3): pausa planejada de até 14 dias — a sequência
+   * congela, não quebra. Sem custo, sem culpa. `ateDias: null` desativa.
+   */
+  restMode: protectedProcedure
+    .input(z.object({ ateDias: z.number().int().min(1).max(14).nullable() }))
+    .mutation(async ({ ctx, input }) => {
+      const until =
+        input.ateDias === null
+          ? null
+          : dsql`now() + make_interval(days => ${input.ateDias})`;
+      await ctx.db
+        .insert(userSettings)
+        .values({ userId: ctx.userId, restModeUntil: until as never })
+        .onConflictDoUpdate({
+          target: userSettings.userId,
+          set: { restModeUntil: until as never, updatedAt: dsql`now()` },
+        });
+      await ctx.db.insert(outbox).values({
+        eventType: "rest.mode.toggled",
+        payload: { userId: ctx.userId, enabled: input.ateDias !== null, dias: input.ateDias },
+      });
+      return { ok: true as const };
+    }),
+
+  /**
    * Diário de Evolução: últimas ações com PROVA (nota/foto) + área + XP ganho.
    * É a matéria-prima do feed social da Fase 2.
    */
@@ -164,6 +191,15 @@ export const progressRouter = router({
       .from(profiles)
       .where(eq(profiles.userId, userId))
       .limit(1);
+
+    const settingsRows = await ctx.db
+      .select({ restModeUntil: userSettings.restModeUntil })
+      .from(userSettings)
+      .where(eq(userSettings.userId, userId))
+      .limit(1);
+    const restRaw = settingsRows[0]?.restModeUntil ?? null;
+    const restModeUntil =
+      restRaw && restRaw.getTime() > Date.now() ? restRaw : null;
     const perfil = perfilRows[0];
     let framePreview: Record<string, unknown> | null = null;
     let themePreview: Record<string, unknown> | null = null;
@@ -185,6 +221,7 @@ export const progressRouter = router({
       avatarUrl: perfil?.avatarUrl ?? null,
       framePreview,
       themePreview,
+      restModeUntil,
       riseLevel: rise.nivelRise,
       totalXp: rise.xpRise,
       activeAreas: rise.areasAtivas,

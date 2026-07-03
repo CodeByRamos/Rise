@@ -117,6 +117,12 @@ export interface AmortecedorOpcoes {
   freezesAvailable: number;
   /** Perdão automático disponível? (1 a cada 14 dias — controlado pelo chamador via grace_until). */
   perdaoDisponivel: boolean;
+  /**
+   * Modo Descanso: última data local (YYYY-MM-DD) coberta pela pausa planejada.
+   * Dias perdidos dentro do descanso NÃO contam como falha — a sequência
+   * congela (doc 13 §5.3). Dias perdidos APÓS o descanso contam normal.
+   */
+  descansoAte?: string | null;
 }
 
 export interface StreakResultadoAmortecido extends StreakResultado {
@@ -143,9 +149,33 @@ export function aplicarAcaoComAmortecedores(
     return { ...aplicarAcaoNoStreak(prev, hojeLocal), ...semAmortecedor };
   }
 
-  const gap = diffDias(prev.lastActiveDate, hojeLocal);
+  let gap = diffDias(prev.lastActiveDate, hojeLocal);
 
-  // Exatamente 1 dia perdido → tenta absorver.
+  // Modo Descanso: desconta do gap os dias perdidos cobertos pela pausa.
+  if (op.descansoAte && gap > 1) {
+    const ontem = diffDias(prev.lastActiveDate, hojeLocal) - 1; // nº de dias perdidos
+    const cobertos = Math.min(
+      Math.max(diffDias(prev.lastActiveDate, op.descansoAte), 0),
+      ontem,
+    );
+    gap = gap - cobertos;
+  }
+
+  if (gap === 1) {
+    const novo = prev.currentCount + 1;
+    return {
+      currentCount: novo,
+      longestCount: Math.max(prev.longestCount, novo),
+      lastActiveDate: hojeLocal,
+      extended: true,
+      broke: false,
+      previousDays: 0,
+      freezeUsado: false,
+      perdaoUsado: false,
+    };
+  }
+
+  // Exatamente 1 dia perdido (fora do descanso) → tenta absorver.
   if (gap === 2) {
     const perdoa = op.perdaoDisponivel && prev.currentCount >= PERDAO_STREAK_MINIMO;
     const congela = !perdoa && op.freezesAvailable > 0;

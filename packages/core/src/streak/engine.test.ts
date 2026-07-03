@@ -145,3 +145,51 @@ describe("aplicarAcaoComAmortecedores (doc 13 §5.3)", () => {
     expect(r.perdaoUsado).toBe(false);
   });
 });
+
+describe("Modo Descanso (doc 13 §5.3 — congela, não quebra)", () => {
+  const prev = { currentCount: 10, longestCount: 10, lastActiveDate: "2026-06-20" };
+  const semRecurso = { freezesAvailable: 0, perdaoDisponivel: false };
+
+  it("descanso cobre todos os dias perdidos → sequência continua (+1)", () => {
+    // perdeu 21..29 (9 dias), descanso até 2026-06-30 cobre tudo
+    const r = aplicarAcaoComAmortecedores(prev, "2026-06-30", {
+      ...semRecurso,
+      descansoAte: "2026-06-30",
+    });
+    expect(r.broke).toBe(false);
+    expect(r.currentCount).toBe(11);
+    expect(r.freezeUsado).toBe(false);
+    expect(r.perdaoUsado).toBe(false);
+  });
+
+  it("1 dia descoberto após o descanso → freeze/perdão ainda salvam", () => {
+    // descanso até 06-28; perdidos 21..29 → 29 descoberto → gap efetivo 2
+    const r = aplicarAcaoComAmortecedores(prev, "2026-06-30", {
+      freezesAvailable: 1,
+      perdaoDisponivel: false,
+      descansoAte: "2026-06-28",
+    });
+    expect(r.broke).toBe(false);
+    expect(r.currentCount).toBe(11);
+    expect(r.freezeUsado).toBe(true);
+  });
+
+  it("vários dias descobertos após o descanso → quebra", () => {
+    // descanso até 06-25; perdidos 26..29 descobertos → gap efetivo 5
+    const r = aplicarAcaoComAmortecedores(prev, "2026-06-30", {
+      ...semRecurso,
+      descansoAte: "2026-06-25",
+    });
+    expect(r.broke).toBe(true);
+    expect(r.currentCount).toBe(1);
+    expect(r.longestCount).toBe(10);
+  });
+
+  it("descanso anterior ao último dia ativo é irrelevante", () => {
+    const r = aplicarAcaoComAmortecedores(prev, "2026-06-30", {
+      ...semRecurso,
+      descansoAte: "2026-06-10",
+    });
+    expect(r.broke).toBe(true);
+  });
+});
