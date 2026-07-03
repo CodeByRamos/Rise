@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Sora, Manrope } from "next/font/google";
+import { SwRegister } from "@/components/sw-register";
 import "./globals.css";
 
 // Wordmark e números grandes.
@@ -23,6 +24,11 @@ export const metadata: Metadata = {
   title: "Rise — Minha Evolução",
   description:
     "Rise é o videogame da vida real. Toda ação positiva gera progresso.",
+  appleWebApp: {
+    capable: true,
+    title: "Rise",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export const viewport: Viewport = {
@@ -32,7 +38,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="pt-BR" className={`${sora.variable} ${manrope.variable}`}>
-      <body>{children}</body>
+      <body>
+        <SwRegister />
+        {children}
+      </body>
     </html>
   );
 }
