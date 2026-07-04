@@ -99,16 +99,38 @@ export function PerfilClient() {
               {nomeAtual}
             </p>
             <p className="truncate text-sm text-muted">@{p.handle}</p>
-            <label className="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-[var(--radius-pill)] border border-line bg-surface px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:text-snow">
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="hidden"
-                onChange={(e) => void onFoto(e.target.files?.[0] ?? null)}
-              />
-              <CameraIcon size={14} />
-              Trocar foto
-            </label>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-[var(--radius-pill)] border border-line bg-surface px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:text-snow">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={(e) => void onFoto(e.target.files?.[0] ?? null)}
+                />
+                <CameraIcon size={14} />
+                Trocar foto
+              </label>
+              <a
+                href={`/u/${p.handle}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] border border-line bg-surface px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:text-snow"
+              >
+                Ver página pública
+              </a>
+              <button
+                type="button"
+                onClick={() => {
+                  void navigator.clipboard.writeText(
+                    `${window.location.origin}/u/${p.handle}`,
+                  );
+                  setMsg("Link copiado.");
+                }}
+                className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] border border-line bg-surface px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:text-snow"
+              >
+                Copiar link
+              </button>
+            </div>
           </div>
         </div>
 

@@ -7,6 +7,9 @@
  */
 export * from "./schema";
 export * from "./client";
+// Operadores de query re-exportados: consumidores (apps) não dependem de
+// drizzle-orm diretamente — a camada de dados é @rise/db.
+export { eq, and, or, isNull, desc, asc, gte, lte, inArray, sql } from "drizzle-orm";
 export { LIFE_AREA_CATALOG } from "./seed/life-area-catalog";
 export type { LifeAreaCatalogSeed } from "./seed/life-area-catalog";
 export { MISSION_TEMPLATES } from "./seed/mission-templates";
