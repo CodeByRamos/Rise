@@ -63,6 +63,53 @@ export const profileRouter = router({
     }));
   }),
 
+  /**
+   * Troca o @handle público. Minúsculas/números/underscore, 3–20 chars,
+   * único (constraint no banco é a verdade final) e fora da lista reservada.
+   */
+  updateHandle: protectedProcedure
+    .input(
+      z.object({
+        handle: z
+          .string()
+          .trim()
+          .toLowerCase()
+          .regex(
+            /^[a-z0-9_]{3,20}$/,
+            "Use 3–20 caracteres: letras minúsculas, números ou _.",
+          ),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const RESERVADOS = new Set([
+        "rise", "admin", "api", "app", "entrar", "sair", "feed", "loja",
+        "perfil", "evolucao", "u", "sobre", "ajuda", "suporte", "config",
+        "settings", "oficial", "suporte_rise",
+      ]);
+      if (RESERVADOS.has(input.handle)) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Este @ é reservado. Escolha outro.",
+        });
+      }
+      try {
+        await ctx.db
+          .update(users)
+          .set({ handle: input.handle })
+          .where(eq(users.id, ctx.userId));
+      } catch (e) {
+        // UNIQUE(handle) do banco — corrida perde aqui, não no check prévio.
+        if (e instanceof Error && /unique|duplicate/i.test(e.message)) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "Este @ já está em uso. Escolha outro.",
+          });
+        }
+        throw e;
+      }
+      return { ok: true as const, handle: input.handle };
+    }),
+
   /** Atualiza nome, bio e/ou avatar (caminho no bucket público `avatars`). */
   update: protectedProcedure
     .input(

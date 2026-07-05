@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { trpc } from "@/lib/trpc/react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Avatar } from "./avatar";
-import { CameraIcon, CheckIcon, LockIcon } from "./icons";
+import { CameraIcon, CheckIcon, LockIcon, XIcon } from "./icons";
 
 const COR_RARIDADE: Record<string, string> = {
   comum: "var(--color-muted)",
@@ -44,6 +44,17 @@ export function PerfilClient() {
     },
     onError: (e) => setErro(e.message),
     onSettled: () => setSalvando(false),
+  });
+  const [editandoHandle, setEditandoHandle] = useState(false);
+  const [handleInput, setHandleInput] = useState("");
+  const [handleErro, setHandleErro] = useState<string | null>(null);
+  const updateHandle = trpc.profile.updateHandle.useMutation({
+    onSuccess: () => {
+      setEditandoHandle(false);
+      setHandleErro(null);
+      void utils.profile.get.invalidate();
+    },
+    onError: (e) => setHandleErro(e.message),
   });
   const equip = trpc.profile.equip.useMutation({
     onSettled: () => {
@@ -98,7 +109,62 @@ export function PerfilClient() {
             <p className="truncate font-display text-lg font-semibold text-snow">
               {nomeAtual}
             </p>
-            <p className="truncate text-sm text-muted">@{p.handle}</p>
+            {editandoHandle ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  updateHandle.mutate({ handle: handleInput });
+                }}
+                className="mt-1 flex items-center gap-1.5"
+              >
+                <span className="text-sm text-muted">@</span>
+                <input
+                  autoFocus
+                  value={handleInput}
+                  maxLength={20}
+                  onChange={(e) =>
+                    setHandleInput(
+                      e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""),
+                    )
+                  }
+                  className="tnum w-36 rounded-lg border border-line bg-surface px-2 py-1 text-sm text-snow outline-none focus:border-brand"
+                />
+                <button
+                  type="submit"
+                  disabled={updateHandle.isPending}
+                  className="rounded-lg bg-brand px-2.5 py-1 text-xs font-semibold text-void disabled:opacity-50"
+                >
+                  <CheckIcon size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditandoHandle(false);
+                    setHandleErro(null);
+                  }}
+                  className="rounded-lg border border-line px-2 py-1 text-xs text-muted"
+                >
+                  <XIcon size={13} />
+                </button>
+              </form>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setHandleInput(p.handle);
+                  setEditandoHandle(true);
+                }}
+                className="group inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-snow"
+              >
+                @{p.handle}
+                <span className="text-[11px] text-faint group-hover:text-brand">
+                  editar
+                </span>
+              </button>
+            )}
+            {handleErro && (
+              <p className="mt-1 text-xs text-red-400">{handleErro}</p>
+            )}
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <label className="inline-flex cursor-pointer items-center gap-2 rounded-[var(--radius-pill)] border border-line bg-surface px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:text-snow">
                 <input
