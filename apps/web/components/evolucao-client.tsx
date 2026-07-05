@@ -5,6 +5,7 @@ import { arvoreDaArea } from "@rise/core";
 import { trpc } from "@/lib/trpc/react";
 import { cssColor } from "./area-card";
 import { CheckIcon, LockIcon } from "./icons";
+import { GerenciarAreas } from "./gerenciar-areas";
 
 const nf = new Intl.NumberFormat("pt-BR");
 
@@ -143,6 +144,8 @@ export function EvolucaoClient() {
           </li>
         ))}
       </ol>
+
+      <GerenciarAreas />
     </div>
   );
 }
