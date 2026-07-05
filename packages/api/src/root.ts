@@ -8,6 +8,7 @@ import { shopRouter } from "./routers/shop";
 import { feedRouter } from "./routers/feed";
 import { areaRouter } from "./routers/area";
 import { socialRouter } from "./routers/social";
+import { leagueRouter } from "./routers/league";
 
 /** Router raiz do Rise. Consumido type-safe por apps/web e apps/mobile. */
 export const appRouter = router({
@@ -20,6 +21,7 @@ export const appRouter = router({
   feed: feedRouter,
   area: areaRouter,
   social: socialRouter,
+  league: leagueRouter,
 });
 
 export type AppRouter = typeof appRouter;

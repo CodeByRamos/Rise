@@ -7,6 +7,7 @@ const LINKS = [
   { href: "/", rotulo: "Início" },
   { href: "/evolucao", rotulo: "Evolução" },
   { href: "/feed", rotulo: "Feed" },
+  { href: "/ligas", rotulo: "Ligas" },
   { href: "/descobrir", rotulo: "Descobrir" },
   { href: "/loja", rotulo: "Loja" },
   { href: "/perfil", rotulo: "Perfil" },
