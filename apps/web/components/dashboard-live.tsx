@@ -99,6 +99,7 @@ function DashboardInner({ displayName }: { displayName: string }) {
   const [booted, setBooted] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [cel, setCel] = useState<Celebracao | null>(null);
+  const [mostrarWelcome, setMostrarWelcome] = useState(false);
   const toastId = useRef(0);
   const bootStarted = useRef(false);
 
@@ -138,6 +139,27 @@ function DashboardInner({ displayName }: { displayName: string }) {
 
   const me = trpc.progress.me.useQuery(undefined, { enabled: booted });
   const diario = trpc.progress.diario.useQuery(undefined, { enabled: booted });
+
+  // Onboarding: mostra o boas-vindas 1x para quem ainda não registrou nada.
+  useEffect(() => {
+    if (
+      diario.data &&
+      diario.data.length === 0 &&
+      typeof window !== "undefined" &&
+      !localStorage.getItem("rise_onboarded")
+    ) {
+      setMostrarWelcome(true);
+    }
+  }, [diario.data]);
+
+  function encerrarWelcome() {
+    setMostrarWelcome(false);
+    try {
+      localStorage.setItem("rise_onboarded", "1");
+    } catch {
+      // sem localStorage → apenas fecha
+    }
+  }
   const missoes = trpc.mission.today.useQuery(undefined, { enabled: booted });
   const coach = trpc.coach.checkin.useQuery(undefined, {
     enabled: booted,
@@ -664,6 +686,53 @@ function DashboardInner({ displayName }: { displayName: string }) {
             <p className="mt-3 text-center text-[11px] text-faint">
               Sem prova não há progresso — é o que mantém o Rise honesto.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Boas-vindas (onboarding leve, 1x) */}
+      {mostrarWelcome && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-void/80 px-5 backdrop-blur-sm">
+          <div className="animate-pop-in w-full max-w-md rounded-[28px] border border-line bg-surface-2 p-8">
+            <RiseMark size={44} />
+            <h2 className="font-display mt-5 text-2xl font-semibold tracking-tight text-snow">
+              Bem-vindo ao Rise, {displayName}.
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-muted">
+              Aqui toda ação positiva vira progresso real — com uma regra: tem
+              que provar.
+            </p>
+            <ol className="mt-5 space-y-3">
+              {[
+                "Escolha uma Área da Vida e registre o que você fez hoje.",
+                "Prove: escreva uma nota ou anexe uma foto.",
+                "Ganhe XP, suba de nível e volte amanhã.",
+              ].map((t, i) => (
+                <li key={i} className="flex items-start gap-3">
+                  <span className="font-display tnum mt-0.5 text-sm font-semibold text-brand">
+                    0{i + 1}
+                  </span>
+                  <span className="text-sm leading-relaxed text-snow">{t}</span>
+                </li>
+              ))}
+            </ol>
+            <button
+              type="button"
+              onClick={() => {
+                encerrarWelcome();
+                abrirModal(null);
+              }}
+              className="mt-6 w-full rounded-xl bg-brand py-3 font-semibold text-void transition-transform hover:scale-[1.01] active:scale-[0.99]"
+            >
+              Registrar minha primeira ação
+            </button>
+            <button
+              type="button"
+              onClick={encerrarWelcome}
+              className="mt-2 w-full text-center text-xs text-muted transition-colors hover:text-snow"
+            >
+              Explorar primeiro
+            </button>
           </div>
         </div>
       )}
