@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { and, eq, ne, desc, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { follows, users, profiles, userStats, cosmeticItems } from "@rise/db";
+import { follows, users, profiles, userStats, cosmeticItems, notifications } from "@rise/db";
 import { router, protectedProcedure } from "../trpc";
 
 export const socialRouter = router({
@@ -54,6 +54,11 @@ export const socialRouter = router({
         .insert(follows)
         .values({ followerId: ctx.userId, followingId: input.targetUserId })
         .onConflictDoNothing();
+      await ctx.db.insert(notifications).values({
+        userId: input.targetUserId,
+        type: "follow",
+        actorId: ctx.userId,
+      });
       return { seguindo: true as const };
     }),
 

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { and, desc, eq, sql, inArray } from "drizzle-orm";
-import { feedItems, profiles, cosmeticItems, reactions, follows } from "@rise/db";
+import { feedItems, profiles, cosmeticItems, reactions, follows, notifications } from "@rise/db";
 import { router, protectedProcedure } from "../trpc";
 
 export const feedRouter = router({
@@ -72,6 +72,20 @@ export const feedRouter = router({
         .insert(reactions)
         .values({ feedItemId: input.feedItemId, userId })
         .onConflictDoNothing();
+      // Notifica o dono do marco (nunca a si mesmo).
+      const dono = await ctx.db
+        .select({ userId: feedItems.userId })
+        .from(feedItems)
+        .where(eq(feedItems.id, input.feedItemId))
+        .limit(1);
+      if (dono[0] && dono[0].userId !== userId) {
+        await ctx.db.insert(notifications).values({
+          userId: dono[0].userId,
+          type: "reaction",
+          actorId: userId,
+          feedItemId: input.feedItemId,
+        });
+      }
       return { reagindo: true as const };
     }),
 });

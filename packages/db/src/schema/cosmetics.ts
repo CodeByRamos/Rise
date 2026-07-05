@@ -63,6 +63,27 @@ export const feedItems = pgTable(
   (t) => [index("feed_items_created_idx").on(t.createdAt)],
 );
 
+// Notificações in-app (sino). Escritas inline em seguir/reagir.
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    userId: uuid("user_id") // destinatário
+      .notNull()
+      .references(() => users.id),
+    type: text("type").notNull(), // follow | reaction
+    actorId: uuid("actor_id") // quem gerou
+      .notNull()
+      .references(() => users.id),
+    feedItemId: bigint("feed_item_id", { mode: "number" }),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [index("notifications_user_idx").on(t.userId, t.createdAt)],
+);
+
 // Grafo social: quem segue quem (doc 08 — FriendEdge/Follow).
 export const follows = pgTable(
   "follows",

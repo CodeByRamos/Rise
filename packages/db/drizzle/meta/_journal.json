@@ -57,6 +57,13 @@
       "when": 1783232157296,
       "tag": "0007_faithful_patriot",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1783265131569,
+      "tag": "0008_abandoned_wild_pack",
+      "breakpoints": true
     }
   ]
 }
