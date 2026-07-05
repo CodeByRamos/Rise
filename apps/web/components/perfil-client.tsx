@@ -20,9 +20,10 @@ async function uploadAvatar(file: File): Promise<string> {
   if (!uid) throw new Error("Sessão expirada — entre de novo.");
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
   const path = `${uid}/avatar-${Date.now()}.${ext}`;
+  // Sem upsert: o caminho de upsert do Storage falha o RLS (403). Nome é único.
   const { error } = await supabase.storage
     .from("avatars")
-    .upload(path, file, { contentType: file.type, upsert: true });
+    .upload(path, file, { contentType: file.type });
   if (error) throw new Error(`Falha no upload: ${error.message}`);
   return path;
 }
