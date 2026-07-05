@@ -63,6 +63,26 @@ export const feedItems = pgTable(
   (t) => [index("feed_items_created_idx").on(t.createdAt)],
 );
 
+// Grafo social: quem segue quem (doc 08 — FriendEdge/Follow).
+export const follows = pgTable(
+  "follows",
+  {
+    followerId: uuid("follower_id")
+      .notNull()
+      .references(() => users.id),
+    followingId: uuid("following_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.followerId, t.followingId] }),
+    index("follows_following_idx").on(t.followingId),
+  ],
+);
+
 // Reações — APENAS positivas ("Força", o chevron da marca). Sem dislike (doc 08).
 export const reactions = pgTable(
   "reactions",

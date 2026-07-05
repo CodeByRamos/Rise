@@ -1,17 +1,37 @@
 import { z } from "zod";
-import { and, desc, eq, sql } from "drizzle-orm";
-import { feedItems, profiles, cosmeticItems, reactions } from "@rise/db";
+import { and, desc, eq, sql, inArray } from "drizzle-orm";
+import { feedItems, profiles, cosmeticItems, reactions, follows } from "@rise/db";
 import { router, protectedProcedure } from "../trpc";
 
 export const feedRouter = router({
   /**
-   * Feed global de MARCOS de progresso (level-up, marcos de sequência, dia de
-   * missões completo). Nunca expõe o conteúdo da prova — só a conquista.
+   * Feed de MARCOS de progresso. Escopo global (comunidade) ou "seguindo"
+   * (só quem o viewer segue). Nunca expõe o conteúdo da prova — só a conquista.
    */
   list: protectedProcedure
-    .input(z.object({ limite: z.number().int().min(1).max(50).default(30) }).optional())
+    .input(
+      z
+        .object({
+          limite: z.number().int().min(1).max(50).default(30),
+          escopo: z.enum(["global", "seguindo"]).default("global"),
+        })
+        .optional(),
+    )
     .query(async ({ ctx, input }) => {
       const userId = ctx.userId;
+      const escopo = input?.escopo ?? "global";
+
+      let filtroSeguindo;
+      if (escopo === "seguindo") {
+        const seguidos = await ctx.db
+          .select({ id: follows.followingId })
+          .from(follows)
+          .where(eq(follows.followerId, userId));
+        const ids = seguidos.map((s) => s.id);
+        if (ids.length === 0) return [];
+        filtroSeguindo = inArray(feedItems.userId, ids);
+      }
+
       const rows = await ctx.db
         .select({
           id: feedItems.id,
@@ -27,6 +47,7 @@ export const feedRouter = router({
         .from(feedItems)
         .innerJoin(profiles, eq(profiles.userId, feedItems.userId))
         .leftJoin(cosmeticItems, eq(cosmeticItems.id, profiles.equippedFrameId))
+        .where(filtroSeguindo)
         .orderBy(desc(feedItems.id))
         .limit(input?.limite ?? 30);
       return rows;

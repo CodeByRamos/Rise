@@ -43,6 +43,13 @@
       "when": 1783105990467,
       "tag": "0005_blue_shinko_yamashiro",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783210522322,
+      "tag": "0006_large_nekra",
+      "breakpoints": true
     }
   ]
 }

@@ -6,13 +6,17 @@ import {
   and,
   eq,
   isNull,
+  sql,
   users,
   profiles,
   lifeAreas,
   streaks,
   userAchievements,
   cosmeticItems,
+  follows,
 } from "@rise/db";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { FollowButton } from "@/components/follow-button";
 import {
   calcularNivelRise,
   nivelDeArea,
@@ -54,7 +58,7 @@ async function carregarPerfilPublico(handle: string) {
   // Perfil oculto = inexistente para o público.
   if (!p || !p.isSearchable) return null;
 
-  const [areas, streakRows, conquistasRows, frameRows] = await Promise.all([
+  const [areas, streakRows, conquistasRows, frameRows, seguidores, seguindo] = await Promise.all([
     db
       .select({ name: lifeAreas.name, colorToken: lifeAreas.colorToken, totalXp: lifeAreas.totalXp })
       .from(lifeAreas)
@@ -75,6 +79,14 @@ async function carregarPerfilPublico(handle: string) {
           .where(eq(cosmeticItems.id, p.equippedFrameId))
           .limit(1)
       : Promise.resolve([]),
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(follows)
+      .where(eq(follows.followingId, p.userId)),
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(follows)
+      .where(eq(follows.followerId, p.userId)),
   ]);
 
   const rise = calcularNivelRise(
@@ -95,7 +107,16 @@ async function carregarPerfilPublico(handle: string) {
     xpTotal: rise.xpRise,
     streakRecorde: streakRows[0]?.longest ?? 0,
     conquistas,
+    seguidores: seguidores[0]?.n ?? 0,
+    seguindo: seguindo[0]?.n ?? 0,
   };
+}
+
+async function viewerId(): Promise<string | null> {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL?.startsWith("http")) return null;
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.auth.getUser();
+  return data.user?.id ?? null;
 }
 
 export async function generateMetadata({
@@ -123,6 +144,8 @@ export default async function PerfilPublicoPage({
   const p = await carregarPerfilPublico(decodeURIComponent(handle));
   if (!p) notFound();
 
+  const viewer = await viewerId();
+  const podeSeguir = viewer !== null && viewer !== p.userId;
   const nf = new Intl.NumberFormat("pt-BR");
 
   return (
@@ -149,18 +172,37 @@ export default async function PerfilPublicoPage({
         </header>
 
         {/* Identidade */}
-        <section className="animate-rise-in mt-12 flex items-center gap-5">
+        <section className="animate-rise-in mt-12 flex items-start gap-5">
           <Avatar
             nome={p.displayName}
             avatarPath={p.avatarUrl}
             frameColors={p.framePreview?.colors}
             size={84}
           />
-          <div className="min-w-0">
-            <h1 className="font-display truncate text-2xl font-semibold tracking-tight text-snow">
-              {p.displayName}
-            </h1>
-            <p className="truncate text-sm text-muted">@{p.handle}</p>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h1 className="font-display truncate text-2xl font-semibold tracking-tight text-snow">
+                  {p.displayName}
+                </h1>
+                <p className="truncate text-sm text-muted">@{p.handle}</p>
+              </div>
+              {podeSeguir && <FollowButton targetUserId={p.userId} />}
+            </div>
+            <div className="tnum mt-2 flex gap-4 text-xs text-muted">
+              <span>
+                <span className="font-semibold text-snow">
+                  {nf.format(p.seguidores)}
+                </span>{" "}
+                seguidores
+              </span>
+              <span>
+                <span className="font-semibold text-snow">
+                  {nf.format(p.seguindo)}
+                </span>{" "}
+                seguindo
+              </span>
+            </div>
             {p.bio && (
               <p className="mt-2 max-w-md text-sm leading-relaxed text-muted">
                 {p.bio}
