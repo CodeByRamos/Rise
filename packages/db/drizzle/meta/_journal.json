@@ -50,6 +50,13 @@
       "when": 1783210522322,
       "tag": "0006_large_nekra",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1783232157296,
+      "tag": "0007_faithful_patriot",
+      "breakpoints": true
     }
   ]
 }

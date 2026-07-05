@@ -407,6 +407,26 @@ function DashboardInner({ displayName }: { displayName: string }) {
               — sua sequência está protegida.
             </p>
           )}
+          {d.streakRepair && (
+            <button
+              type="button"
+              onClick={() => abrirModal(null)}
+              className="mt-3 flex w-full max-w-md items-center gap-3 rounded-2xl border border-brand/40 bg-brand/5 px-4 py-3 text-left transition-colors hover:bg-brand/10"
+            >
+              <RiseMark size={22} className="shrink-0" />
+              <span className="text-sm text-muted">
+                <span className="font-semibold text-snow">
+                  Sua sequência de {d.streakRepair.valor} dias pode voltar.
+                </span>{" "}
+                Registre uma ação até{" "}
+                {new Date(d.streakRepair.prazo).toLocaleTimeString("pt-BR", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}{" "}
+                para recuperá-la.
+              </span>
+            </button>
+          )}
         </section>
 
         <section

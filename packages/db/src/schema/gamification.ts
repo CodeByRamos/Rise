@@ -30,6 +30,10 @@ export const streaks = pgTable(
     freezesAvailable: integer("freezes_available").default(0).notNull(), // máx 2
     lastActiveDate: date("last_active_date").notNull(),
     graceUntil: timestamp("grace_until", { withTimezone: true }),
+    // Streak repair (§5.3): valor da sequência quebrada + janela de 24h + limite semanal.
+    pendingRepairValue: integer("pending_repair_value"),
+    repairDeadline: timestamp("repair_deadline", { withTimezone: true }),
+    lastRepairAt: timestamp("last_repair_at", { withTimezone: true }),
     state: streakState("state").default("active").notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()

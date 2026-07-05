@@ -152,6 +152,23 @@ export const actionRouter = router({
             descansoAte,
           },
         );
+        // Streak repair: dentro de 24h da quebra anterior e 1×/semana; esta
+        // ação (que NÃO quebrou) restaura a sequência perdida.
+        const nowMs = Date.now();
+        const orcamentoRepairOk =
+          !atual?.lastRepairAt ||
+          nowMs - atual.lastRepairAt.getTime() > 7 * 86_400_000;
+        const janelaRepairOk =
+          atual?.pendingRepairValue != null &&
+          atual.repairDeadline != null &&
+          atual.repairDeadline.getTime() >= nowMs;
+        const reparou =
+          !!atual && janelaRepairOk && orcamentoRepairOk && !r.broke;
+        if (reparou) {
+          r.currentCount = (atual!.pendingRepairValue ?? 0) + (r.currentCount - 1);
+          r.longestCount = Math.max(atual!.longestCount, r.currentCount);
+        }
+
         if (atual) {
           await tx
             .update(streaks)
@@ -166,6 +183,17 @@ export const actionRouter = router({
               ...(r.perdaoUsado
                 ? { graceUntil: sql`now() + interval '14 days'` }
                 : {}),
+              pendingRepairValue: reparou
+                ? null
+                : r.broke
+                  ? r.previousDays
+                  : atual.pendingRepairValue,
+              repairDeadline: reparou
+                ? null
+                : r.broke
+                  ? sql`now() + interval '24 hours'`
+                  : atual.repairDeadline,
+              ...(reparou ? { lastRepairAt: sql`now()` } : {}),
               updatedAt: sql`now()`,
             })
             .where(eq(streaks.id, atual.id));
@@ -185,6 +213,16 @@ export const actionRouter = router({
               userId,
               scope: lifeAreaId ?? "global",
               source: r.perdaoUsado ? "auto-forgive" : "item",
+            },
+          });
+        }
+        if (reparou) {
+          await tx.insert(outbox).values({
+            eventType: "streak.repaired",
+            payload: {
+              userId,
+              scope: lifeAreaId ?? "global",
+              restoredDays: r.currentCount,
             },
           });
         }

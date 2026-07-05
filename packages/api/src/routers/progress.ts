@@ -164,10 +164,19 @@ export const progressRouter = router({
         current: streaks.currentCount,
         longest: streaks.longestCount,
         freezes: streaks.freezesAvailable,
+        pendingRepairValue: streaks.pendingRepairValue,
+        repairDeadline: streaks.repairDeadline,
       })
       .from(streaks)
       .where(and(eq(streaks.userId, userId), isNull(streaks.lifeAreaId)))
       .limit(1);
+    const sr = streakRows[0];
+    const streakRepair =
+      sr?.pendingRepairValue != null &&
+      sr.repairDeadline != null &&
+      sr.repairDeadline.getTime() > Date.now()
+        ? { valor: sr.pendingRepairValue, prazo: sr.repairDeadline }
+        : null;
 
     const rise = calcularNivelRise(
       areasRows.map((a) => ({
@@ -226,9 +235,10 @@ export const progressRouter = router({
       totalXp: rise.xpRise,
       activeAreas: rise.areasAtivas,
       sparks: walletRows[0]?.balance ?? 0,
-      streakDias: streakRows[0]?.current ?? 0,
-      streakRecorde: streakRows[0]?.longest ?? 0,
-      freezes: streakRows[0]?.freezes ?? 0,
+      streakDias: sr?.current ?? 0,
+      streakRecorde: sr?.longest ?? 0,
+      freezes: sr?.freezes ?? 0,
+      streakRepair,
       areas: areasRows.map((a) => {
         const p = progressoNoNivel(a.totalXp);
         return {
