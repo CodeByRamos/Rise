@@ -7,6 +7,7 @@ const LINKS = [
   { href: "/", rotulo: "Início" },
   { href: "/evolucao", rotulo: "Evolução" },
   { href: "/feed", rotulo: "Feed" },
+  { href: "/descobrir", rotulo: "Descobrir" },
   { href: "/loja", rotulo: "Loja" },
   { href: "/perfil", rotulo: "Perfil" },
 ] as const;
@@ -15,7 +16,7 @@ const LINKS = [
 export function AppNav() {
   const pathname = usePathname();
   return (
-    <nav aria-label="Principal" className="flex items-center gap-1">
+    <nav aria-label="Principal" className="flex flex-wrap items-center justify-end gap-1">
       {LINKS.map((l) => {
         const ativo = pathname === l.href;
         return (
