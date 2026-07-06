@@ -38,12 +38,12 @@ A ordem das fases não é arbitrária. Quatro teses a governam:
 
 ### Escopo
 
-- **Monorepo** Turborepo + pnpm: `apps/web` (Next.js 15 App Router/RSC), `packages/{core,ui,db,ai,api,config}`. Regra de dependência: `core` não importa ninguém; `db/ai/api` importam `core`; `apps` importam `api/ui/config`.
-- **Backend base:** Supabase (Postgres + Auth + Storage + Realtime + RLS) + Drizzle (migrations e schema em TS) + tRPC com os tipos de procedure (`publicProcedure`, `protectedProcedure`, `premiumProcedure`, `orgProcedure`).
-- **Auth:** Supabase Auth (email + OAuth + magic link).
+- **Monorepo** Turborepo + pnpm: `apps/web` (Next.js 15 App Router/RSC), `packages/{core,ui,db,ai,api,config}`. Regra de dependência: `core` não importa ninguém; `db/ai/api` importam `core`; `apps` importam `api/ui/config`. feito
+- **Backend base:** Supabase (Postgres + Auth + Storage + Realtime + RLS) + Drizzle (migrations e schema em TS) + tRPC com os tipos de procedure (`publicProcedure`, `protectedProcedure`, `premiumProcedure`, `orgProcedure`). feito
+- **Auth:** Supabase Auth (email + OAuth + magic link). feito
 - **Design tokens** (`packages/ui/tokens`): `primitives.json`, `semantic.json`, `areas.json` + `build.ts` emitindo `tokens.css`, `tokens.native.ts`, `tailwind.tokens.ts`. Tema dark padrão + light first-class.
-- **Esqueleto de schema de domínio:** `User`, `LifeArea`, `XPGrant/XPLedger` (append-only), `ActionLog`, `UserStat`, tabela `outbox`.
-- **Observabilidade e qualidade:** PostHog (analytics + flags + A/B), Sentry (erros), logs estruturados; Vitest + Playwright configurados; CI/CD (lint, typecheck, testes, build, preview deploy).
+- **Esqueleto de schema de domínio:** `User`, `LifeArea`, `XPGrant/XPLedger` (append-only), `ActionLog`, `UserStat`, tabela `outbox`.feito
+- **Observabilidade e qualidade:** PostHog (analytics + flags + A/B), Sentry (erros), logs estruturados; Vitest + Playwright configurados; CI/CD (lint, typecheck, testes, build, preview deploy).feito
 - **i18n** desde já: next-intl, catálogos pt-BR + en com termos canônicos do glossário (Área da Vida ↔ Life Area).
 - **ADRs 0001–0005** registrados.
 
@@ -56,10 +56,10 @@ A ordem das fases não é arbitrária. Quatro teses a governam:
 
 ### Marcos
 
-- **M0.1** Monorepo + CI verde + deploy de staging.
-- **M0.2** Auth funcional (login/signup/magic link) + RLS base.
-- **M0.3** Design tokens gerando três alvos + 3–4 componentes Rise base (`BarraDeXP`, `AnelDeProgresso`, `AreaCard`, `LevelBadge`).
-- **M0.4** Esqueleto de schema migrado + `xp.granted` end-to-end de teste (registra ação fake → grava no ledger → projeta nível).
+- **M0.1** Monorepo + CI verde + deploy de staging.feito
+- **M0.2** Auth funcional (login/signup/magic link) + RLS base.feito
+- **M0.3** Design tokens gerando três alvos + 3–4 componentes Rise base (`BarraDeXP`, `AnelDeProgresso`, `AreaCard`, `LevelBadge`).feito
+- **M0.4** Esqueleto de schema migrado + `xp.granted` end-to-end de teste (registra ação fake → grava no ledger → projeta nível).feito
 
 ---
 
