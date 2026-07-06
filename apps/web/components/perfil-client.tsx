@@ -187,15 +187,26 @@ export function PerfilClient() {
               </a>
               <button
                 type="button"
-                onClick={() => {
-                  void navigator.clipboard.writeText(
-                    `${window.location.origin}/u/${p.handle}`,
-                  );
+                onClick={async () => {
+                  const url = `${window.location.origin}/u/${p.handle}`;
+                  if (navigator.share) {
+                    try {
+                      await navigator.share({
+                        title: `${nomeAtual} no Rise`,
+                        text: "Meu progresso no Rise:",
+                        url,
+                      });
+                      return;
+                    } catch {
+                      // cancelado → cai no copiar
+                    }
+                  }
+                  await navigator.clipboard.writeText(url);
                   setMsg("Link copiado.");
                 }}
                 className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] border border-line bg-surface px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:text-snow"
               >
-                Copiar link
+                Compartilhar
               </button>
             </div>
           </div>
