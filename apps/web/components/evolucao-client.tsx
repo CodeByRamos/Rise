@@ -6,6 +6,7 @@ import { trpc } from "@/lib/trpc/react";
 import { cssColor } from "./area-card";
 import { CheckIcon, LockIcon } from "./icons";
 import { GerenciarAreas } from "./gerenciar-areas";
+import { Amplitude } from "./amplitude";
 import { ResumoSemana } from "./resumo-semana";
 import { Heatmap } from "./heatmap";
 
@@ -147,6 +148,7 @@ export function EvolucaoClient() {
         ))}
       </ol>
 
+      <Amplitude />
       <ResumoSemana />
       <Heatmap />
       <GerenciarAreas />
