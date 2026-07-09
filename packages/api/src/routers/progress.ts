@@ -15,7 +15,7 @@ import {
   LIFE_AREA_CATALOG,
 } from "@rise/db";
 import { progressoNoNivel, nivelDeArea, calcularNivelRise } from "@rise/core";
-import { sql as dsql } from "drizzle-orm";
+import { sql as dsql, gte } from "drizzle-orm";
 import { outbox } from "@rise/db";
 import { router, protectedProcedure } from "../trpc";
 
@@ -145,6 +145,31 @@ export const progressRouter = router({
         .limit(input?.limite ?? 12);
       return rows;
     }),
+
+  /**
+   * Heatmap de consistência: ações por dia (fuso do usuário) nos últimos ~26
+   * semanas. "Toda ação aparece" virou visual.
+   */
+  heatmap: protectedProcedure.query(async ({ ctx }) => {
+    const u = await ctx.db
+      .select({ tz: users.timezone })
+      .from(users)
+      .where(eq(users.id, ctx.userId))
+      .limit(1);
+    const tz = u[0]?.tz ?? "America/Sao_Paulo";
+    const diaExpr = dsql<string>`to_char((${actionLogs.createdAt} at time zone ${tz}), 'YYYY-MM-DD')`;
+    const rows = await ctx.db
+      .select({ dia: diaExpr, n: dsql<number>`count(*)::int` })
+      .from(actionLogs)
+      .where(
+        and(
+          eq(actionLogs.userId, ctx.userId),
+          gte(actionLogs.createdAt, dsql`now() - interval '182 days'`),
+        ),
+      )
+      .groupBy(dsql`1`);
+    return rows.map((r) => ({ dia: r.dia, n: Number(r.n) }));
+  }),
 
   /**
    * Dados da tela "Minha Evolução": Nível Rise + stats + Áreas da Vida.
