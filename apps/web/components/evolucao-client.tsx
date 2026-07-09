@@ -6,6 +6,7 @@ import { trpc } from "@/lib/trpc/react";
 import { cssColor } from "./area-card";
 import { CheckIcon, LockIcon } from "./icons";
 import { GerenciarAreas } from "./gerenciar-areas";
+import { ResumoSemana } from "./resumo-semana";
 import { Heatmap } from "./heatmap";
 
 const nf = new Intl.NumberFormat("pt-BR");
@@ -146,6 +147,7 @@ export function EvolucaoClient() {
         ))}
       </ol>
 
+      <ResumoSemana />
       <Heatmap />
       <GerenciarAreas />
     </div>

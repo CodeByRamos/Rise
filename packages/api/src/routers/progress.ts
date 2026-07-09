@@ -172,6 +172,72 @@ export const progressRouter = router({
   }),
 
   /**
+   * Resumo de momentum dos últimos 7 dias (Sprint 5 — estatísticas no Free):
+   * XP da semana vs. semana anterior (tendência), ações registradas e a Área
+   * que mais subiu. Derivado do ledger imutável — leitura, nunca escreve.
+   */
+  resumoSemana: protectedProcedure.query(async ({ ctx }) => {
+    const userId = ctx.userId;
+
+    // XP das duas janelas de 7 dias numa passada só (FILTER agrega ambas).
+    const janelasRows = await ctx.db
+      .select({
+        xp7: dsql<number>`coalesce(sum(${xpEvents.amount}) filter (where ${xpEvents.createdAt} >= now() - interval '7 days'), 0)::bigint`,
+        xpAnterior: dsql<number>`coalesce(sum(${xpEvents.amount}) filter (where ${xpEvents.createdAt} >= now() - interval '14 days' and ${xpEvents.createdAt} < now() - interval '7 days'), 0)::bigint`,
+      })
+      .from(xpEvents)
+      .where(
+        and(
+          eq(xpEvents.userId, userId),
+          gte(xpEvents.createdAt, dsql`now() - interval '14 days'`),
+        ),
+      );
+    const xp7 = Number(janelasRows[0]?.xp7 ?? 0);
+    const xpAnterior = Number(janelasRows[0]?.xpAnterior ?? 0);
+
+    const acoesRows = await ctx.db
+      .select({ n: dsql<number>`count(*)::int` })
+      .from(actionLogs)
+      .where(
+        and(
+          eq(actionLogs.userId, userId),
+          gte(actionLogs.createdAt, dsql`now() - interval '7 days'`),
+        ),
+      );
+    const acoes7 = Number(acoesRows[0]?.n ?? 0);
+
+    // Área que mais subiu na semana (por XP), com nome/cor para a UI.
+    const topRows = await ctx.db
+      .select({
+        nome: lifeAreas.name,
+        cor: lifeAreas.colorToken,
+        xp: dsql<number>`sum(${xpEvents.amount})::bigint`,
+      })
+      .from(xpEvents)
+      .innerJoin(lifeAreas, eq(xpEvents.lifeAreaId, lifeAreas.id))
+      .where(
+        and(
+          eq(xpEvents.userId, userId),
+          gte(xpEvents.createdAt, dsql`now() - interval '7 days'`),
+        ),
+      )
+      .groupBy(lifeAreas.id, lifeAreas.name, lifeAreas.colorToken)
+      .orderBy(dsql`3 desc`)
+      .limit(1);
+    const top = topRows[0];
+    const topArea =
+      top && Number(top.xp) > 0
+        ? { nome: top.nome, cor: top.cor, xp: Number(top.xp) }
+        : null;
+
+    // Tendência % vs. semana anterior. Sem base (0 na anterior) ⇒ null.
+    const tendencia =
+      xpAnterior > 0 ? Math.round(((xp7 - xpAnterior) / xpAnterior) * 100) : null;
+
+    return { xp7, xpAnterior, tendencia, acoes7, topArea };
+  }),
+
+  /**
    * Dados da tela "Minha Evolução": Nível Rise + stats + Áreas da Vida.
    * Totais derivados DAS ÁREAS na leitura (via @rise/core) — não da projeção
    * user_stats, que pode ficar momentaneamente atrás sob ações concorrentes.
