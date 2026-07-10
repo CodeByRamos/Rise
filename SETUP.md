@@ -162,6 +162,25 @@ Sem estas chaves o app funciona normal (o botão "Ativar" simplesmente não apar
 
 Hoje dispara em: seguidor novo e Força recebida. Push exige HTTPS (funciona em `localhost` e no Vercel; não funciona em IP local).
 
+## 10. App mobile (Expo — dev)
+
+O `apps/mobile` consome o MESMO backend do site (tRPC via HTTPS + Supabase Auth por Bearer token). Para rodar no celular:
+
+1. Crie `apps/mobile/.env` a partir do exemplo:
+   ```powershell
+   Copy-Item apps/mobile/.env.example apps/mobile/.env
+   ```
+   - `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY`: mesmos do web.
+   - `EXPO_PUBLIC_API_URL`: URL do site no Vercel (produção) **ou** `http://<IP-da-sua-máquina>:3000` com o `pnpm dev` do web rodando (celular não enxerga `localhost`).
+2. Instale o app **Expo Go** no celular (App Store / Play Store).
+3. Rode e escaneie o QR code:
+   ```powershell
+   corepack pnpm --filter @rise/mobile start
+   ```
+4. Login com a mesma conta do site — XP, streak e áreas são os mesmos (servidor é a verdade).
+
+> Push nativo (Expo Push) e build de loja (EAS) entram numa iteração futura — exigem conta Expo/EAS.
+
 ## Ainda não precisa configurar (fases futuras)
 
 - **Stripe** (Premium/billing — Sprint 7): sem chaves, o app roda 100% no tier Free.

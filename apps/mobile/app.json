@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "Rise",
+    "slug": "rise",
+    "version": "0.1.0",
+    "scheme": "rise",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a0b0d"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.codebyramos.rise"
+    },
+    "android": {
+      "package": "com.codebyramos.rise",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#0a0b0d"
+      }
+    }
+  }
+}
