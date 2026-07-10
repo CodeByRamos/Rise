@@ -1,16 +1,7 @@
 import { and, gte, gt, sql, inArray, eq } from "drizzle-orm";
 import { xpEvents, profiles, cosmeticItems } from "@rise/db";
 import { router, protectedProcedure } from "../trpc";
-
-/** Segunda-feira 00:00 UTC da semana corrente — janela global e justa. */
-function inicioSemanaUTC(now: Date): Date {
-  const d = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-  );
-  const dow = d.getUTCDay(); // 0=domingo … 6=sábado
-  d.setUTCDate(d.getUTCDate() - ((dow + 6) % 7)); // recua até segunda
-  return d;
-}
+import { inicioSemanaUTC } from "../lib/semana";
 
 export const leagueRouter = router({
   /**

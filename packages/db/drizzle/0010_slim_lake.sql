@@ -1,0 +1,1 @@
+ALTER TABLE "profiles" ADD COLUMN "main_class_since" timestamp with time zone;

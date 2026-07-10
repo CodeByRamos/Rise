@@ -52,6 +52,12 @@ export const profiles = pgTable(
     // Classe principal declarada (slug de CLASS_CATALOG em @rise/core). Identidade
     // cosmética — nunca concede XP/vantagem. Base das futuras Guerras de Classe.
     mainClassId: text("main_class_id"),
+    // Desde quando a Classe atual vale — NULL enquanto sem Classe. Guerra de
+    // Classe só soma XP de quem já estava na Classe ANTES da semana corrente:
+    // sem isso, dava para virar a semana trocando de Classe pra "roubar" XP já
+    // ganho por outra (ou nenhuma). Trocar de Classe nunca afeta XP/nível — só
+    // adia a contagem coletiva para a próxima segunda.
+    mainClassSince: timestamp("main_class_since", { withTimezone: true }),
     // Slugs de cosmetic_items (FK adicionada via SQL na migração — evita ciclo de import).
     equippedThemeId: text("equipped_theme_id"),
     equippedFrameId: text("equipped_frame_id"),

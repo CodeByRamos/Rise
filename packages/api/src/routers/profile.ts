@@ -139,6 +139,11 @@ export const profileRouter = router({
   /**
    * Declara (ou remove com null) a Classe principal. Valida o slug contra o
    * catálogo em @rise/core. Identidade cosmética — nunca toca XP/nível.
+   *
+   * `mainClassSince` só avança quando a Classe MUDA de fato (idempotente em
+   * re-envios do mesmo id) — é o que a Guerra de Classe usa para só contar XP
+   * de quem já estava na Classe antes da semana corrente (vs. exploit de
+   * trocar de Classe na sexta pra "roubar" o placar).
    */
   setMainClass: protectedProcedure
     .input(z.object({ classId: z.string().nullable() }))
@@ -149,9 +154,27 @@ export const profileRouter = router({
           message: "Classe inválida.",
         });
       }
+      const atual = await ctx.db
+        .select({ mainClassId: profiles.mainClassId })
+        .from(profiles)
+        .where(eq(profiles.userId, ctx.userId))
+        .limit(1);
+      const mudou = (atual[0]?.mainClassId ?? null) !== input.classId;
+
+      const patch: {
+        mainClassId: string | null;
+        mainClassSince?: Date | null;
+        updatedAt: Date;
+      } = { mainClassId: input.classId, updatedAt: new Date() };
+      if (input.classId === null) {
+        patch.mainClassSince = null;
+      } else if (mudou) {
+        patch.mainClassSince = new Date();
+      }
+
       await ctx.db
         .update(profiles)
-        .set({ mainClassId: input.classId, updatedAt: new Date() })
+        .set(patch)
         .where(eq(profiles.userId, ctx.userId));
       return { ok: true as const, classId: input.classId };
     }),

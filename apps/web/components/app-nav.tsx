@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/evolucao", rotulo: "Evolução" },
   { href: "/feed", rotulo: "Feed" },
   { href: "/ligas", rotulo: "Ligas" },
+  { href: "/guerra-de-classes", rotulo: "Classes" },
   { href: "/descobrir", rotulo: "Descobrir" },
   { href: "/loja", rotulo: "Loja" },
   { href: "/perfil", rotulo: "Perfil" },
