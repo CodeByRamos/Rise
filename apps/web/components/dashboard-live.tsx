@@ -22,6 +22,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { RiseMark, RiseWordmark } from "./rise-mark";
 import { LevelRing } from "./level-ring";
 import { AreaCard, cssColor } from "./area-card";
+import { Temporada } from "./temporada";
 import { Diario } from "./diario";
 import { Avatar } from "./avatar";
 import { AppNav } from "./app-nav";
@@ -534,6 +535,9 @@ function DashboardInner({ displayName }: { displayName: string }) {
             </div>
           </section>
         )}
+
+        {/* Temporada Solo — trilha mensal de marcos */}
+        <Temporada />
 
         <section
           className="animate-rise-in mt-10"

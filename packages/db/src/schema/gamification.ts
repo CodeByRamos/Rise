@@ -81,6 +81,25 @@ export const userMissions = pgTable(
   ],
 );
 
+// Resgates de marcos da Temporada Solo (doc 13 §7). A temporada é o mês civil
+// UTC (chave "AAAA-MM", derivada em @rise/core) — sem tabela de temporadas,
+// reset implícito pela janela (mesma filosofia da Liga semanal). PK composta
+// impede resgate duplo por construção. Reset nunca toca XP/nível/conquista.
+export const seasonClaims = pgTable(
+  "season_claims",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    seasonKey: text("season_key").notNull(), // "2026-07"
+    milestoneXp: integer("milestone_xp").notNull(), // marco resgatado (500, 1500…)
+    claimedAt: timestamp("claimed_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.seasonKey, t.milestoneXp] })],
+);
+
 // Conquistas desbloqueadas — PERMANENTES (doc 13: o que sobe, fica).
 // Catálogo/critérios vivem em @rise/core (ACHIEVEMENT_CATALOG).
 export const userAchievements = pgTable(
