@@ -8,7 +8,7 @@ import {
   cosmeticItems,
   userAchievements,
 } from "@rise/db";
-import { ACHIEVEMENT_CATALOG } from "@rise/core";
+import { ACHIEVEMENT_CATALOG, CLASS_IDS } from "@rise/core";
 import { router, protectedProcedure } from "../trpc";
 
 export const profileRouter = router({
@@ -22,6 +22,7 @@ export const profileRouter = router({
         avatarUrl: profiles.avatarUrl,
         equippedFrameId: profiles.equippedFrameId,
         equippedThemeId: profiles.equippedThemeId,
+        mainClassId: profiles.mainClassId,
         handle: users.handle,
       })
       .from(profiles)
@@ -133,6 +134,26 @@ export const profileRouter = router({
         })
         .where(eq(profiles.userId, ctx.userId));
       return { ok: true as const };
+    }),
+
+  /**
+   * Declara (ou remove com null) a Classe principal. Valida o slug contra o
+   * catálogo em @rise/core. Identidade cosmética — nunca toca XP/nível.
+   */
+  setMainClass: protectedProcedure
+    .input(z.object({ classId: z.string().nullable() }))
+    .mutation(async ({ ctx, input }) => {
+      if (input.classId !== null && !CLASS_IDS.has(input.classId)) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Classe inválida.",
+        });
+      }
+      await ctx.db
+        .update(profiles)
+        .set({ mainClassId: input.classId, updatedAt: new Date() })
+        .where(eq(profiles.userId, ctx.userId));
+      return { ok: true as const, classId: input.classId };
     }),
 
   /** Equipa (ou remove com null) um cosmético POSSUÍDO. */

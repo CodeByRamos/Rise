@@ -49,6 +49,9 @@ export const profiles = pgTable(
     displayName: text("display_name").notNull(),
     avatarUrl: text("avatar_url"), // caminho no bucket público `avatars`
     bio: text("bio"),
+    // Classe principal declarada (slug de CLASS_CATALOG em @rise/core). Identidade
+    // cosmética — nunca concede XP/vantagem. Base das futuras Guerras de Classe.
+    mainClassId: text("main_class_id"),
     // Slugs de cosmetic_items (FK adicionada via SQL na migração — evita ciclo de import).
     equippedThemeId: text("equipped_theme_id"),
     equippedFrameId: text("equipped_frame_id"),

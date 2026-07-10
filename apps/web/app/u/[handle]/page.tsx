@@ -21,6 +21,7 @@ import {
   calcularNivelRise,
   nivelDeArea,
   ACHIEVEMENT_CATALOG,
+  classePorId,
 } from "@rise/core";
 import { Avatar } from "@/components/avatar";
 import { RiseWordmark, RiseMark } from "@/components/rise-mark";
@@ -48,6 +49,7 @@ async function carregarPerfilPublico(handle: string) {
       bio: profiles.bio,
       avatarUrl: profiles.avatarUrl,
       equippedFrameId: profiles.equippedFrameId,
+      mainClassId: profiles.mainClassId,
       isSearchable: profiles.isSearchable,
     })
     .from(users)
@@ -97,8 +99,11 @@ async function carregarPerfilPublico(handle: string) {
     (a) => ({ ...a, unlockedAt: desbloqueadas.get(a.id)! }),
   );
 
+  const classe = classePorId(p.mainClassId);
+
   return {
     ...p,
+    classe: classe ? { nome: classe.nome, cor: classe.colorToken } : null,
     framePreview: (frameRows[0]?.preview ?? null) as { colors?: string[] } | null,
     areas: areas
       .map((a) => ({ nome: a.name, cor: a.colorToken, nivel: nivelDeArea(a.totalXp), xp: a.totalXp }))
@@ -186,6 +191,15 @@ export default async function PerfilPublicoPage({
                   {p.displayName}
                 </h1>
                 <p className="truncate text-sm text-muted">@{p.handle}</p>
+                {p.classe && (
+                  <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] border border-line bg-surface px-2.5 py-1 text-xs font-medium text-snow">
+                    <span
+                      className="size-2 rounded-full"
+                      style={{ backgroundColor: corDaArea(p.classe.cor) }}
+                    />
+                    {p.classe.nome}
+                  </span>
+                )}
               </div>
               {podeSeguir && <FollowButton targetUserId={p.userId} />}
             </div>

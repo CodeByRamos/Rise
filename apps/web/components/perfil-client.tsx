@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { CLASS_CATALOG, classePorId } from "@rise/core";
 import { trpc } from "@/lib/trpc/react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Avatar } from "./avatar";
+import { cssColor } from "./area-card";
 import { CameraIcon, CheckIcon, LockIcon, XIcon } from "./icons";
 
 const COR_RARIDADE: Record<string, string> = {
@@ -255,6 +257,9 @@ export function PerfilClient() {
         </form>
       </section>
 
+      {/* Classe principal */}
+      <ClassePrincipal atual={p.mainClassId} />
+
       {/* Conquistas */}
       <Conquistas />
 
@@ -293,6 +298,87 @@ export function PerfilClient() {
         )}
       </section>
     </div>
+  );
+}
+
+function ClassePrincipal({ atual }: { atual: string | null }) {
+  const utils = trpc.useUtils();
+  const [erro, setErro] = useState<string | null>(null);
+  const set = trpc.profile.setMainClass.useMutation({
+    onSuccess: () => {
+      setErro(null);
+      void utils.profile.get.invalidate();
+      void utils.progress.me.invalidate();
+    },
+    onError: (e) => setErro(e.message),
+  });
+  const escolhida = classePorId(atual);
+
+  return (
+    <section>
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-faint">
+          Classe principal
+        </h2>
+        {escolhida && (
+          <button
+            type="button"
+            onClick={() => set.mutate({ classId: null })}
+            className="text-xs text-muted transition-colors hover:text-snow"
+          >
+            remover
+          </button>
+        )}
+      </div>
+
+      <p className="mt-2 max-w-prose text-sm text-muted">
+        {escolhida ? (
+          <>
+            Você é{" "}
+            <span
+              className="font-semibold"
+              style={{ color: cssColor(escolhida.colorToken) }}
+            >
+              {escolhida.nome}
+            </span>{" "}
+            — {escolhida.descricao}
+          </>
+        ) : (
+          "Declare quem você é. Identidade, não vantagem — a Classe nunca concede XP."
+        )}
+      </p>
+
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {CLASS_CATALOG.map((c) => {
+          const ativo = c.id === atual;
+          return (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => set.mutate({ classId: ativo ? null : c.id })}
+              aria-pressed={ativo}
+              title={c.descricao}
+              className={`inline-flex items-center gap-2 rounded-[var(--radius-pill)] border px-3 py-2 text-xs font-medium transition-colors ${
+                ativo
+                  ? "border-brand bg-brand/10 text-snow"
+                  : "border-line bg-surface text-muted hover:text-snow"
+              }`}
+            >
+              <span
+                className="size-2 shrink-0 rounded-full"
+                style={{ backgroundColor: cssColor(c.colorToken) }}
+              />
+              <span className="truncate">{c.nome}</span>
+            </button>
+          );
+        })}
+      </div>
+      {erro && (
+        <p className="mt-2 text-xs" style={{ color: "#f87171" }}>
+          {erro}
+        </p>
+      )}
+    </section>
   );
 }
 
