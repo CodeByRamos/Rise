@@ -1,11 +1,13 @@
 /**
- * Seed do catálogo de Áreas da Vida (`life_area_catalog`).
+ * Seed dos catálogos: Áreas da Vida (`life_area_catalog`) + cosméticos
+ * (`cosmetic_items` — sem ele a Loja nasce vazia).
  * Idempotente (onConflictDoNothing). Rode com um DATABASE_URL válido:
  *   pnpm --filter @rise/db db:seed
  */
 import { createDb } from "../client";
-import { lifeAreaCatalog } from "../schema";
+import { lifeAreaCatalog, cosmeticItems } from "../schema";
 import { LIFE_AREA_CATALOG } from "./life-area-catalog";
+import { COSMETIC_CATALOG } from "./cosmetics";
 
 async function main() {
   const db = createDb();
@@ -25,6 +27,21 @@ async function main() {
       .onConflictDoNothing();
   }
   console.log(`Seed OK — ${LIFE_AREA_CATALOG.length} Áreas da Vida no catálogo.`);
+
+  for (const c of COSMETIC_CATALOG) {
+    await db
+      .insert(cosmeticItems)
+      .values({
+        id: c.id,
+        name: c.name,
+        kind: c.kind,
+        priceSparks: c.priceSparks,
+        preview: c.preview,
+        isActive: true,
+      })
+      .onConflictDoNothing();
+  }
+  console.log(`Seed OK — ${COSMETIC_CATALOG.length} cosméticos na Loja.`);
 }
 
 main()
