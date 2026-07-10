@@ -10,7 +10,12 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { fatorAmplitude, progressoNoNivel, multStreak } from "@rise/core";
+import {
+  fatorAmplitude,
+  progressoNoNivel,
+  multStreak,
+  templatesDaArea,
+} from "@rise/core";
 import { trpc } from "@/lib/trpc/react";
 import { TRPCProvider } from "@/lib/trpc/provider";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -108,6 +113,7 @@ function DashboardInner({ displayName }: { displayName: string }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [nota, setNota] = useState("");
   const [foto, setFoto] = useState<File | null>(null);
+  const [intensidade, setIntensidade] = useState<1 | 2 | undefined>(undefined);
   const [enviando, setEnviando] = useState(false);
   const [erroModal, setErroModal] = useState<string | null>(null);
 
@@ -115,6 +121,7 @@ function DashboardInner({ displayName }: { displayName: string }) {
     setModalArea(areaId);
     setNota("");
     setFoto(null);
+    setIntensidade(undefined);
     setErroModal(null);
     setModalOpen(true);
   }
@@ -279,6 +286,7 @@ function DashboardInner({ displayName }: { displayName: string }) {
         kind: "quick_log",
         note: notaLimpa.length >= 3 ? notaLimpa : undefined,
         photoPath,
+        intensity: intensidade,
       });
       setModalOpen(false);
     } catch (e) {
@@ -635,7 +643,10 @@ function DashboardInner({ displayName }: { displayName: string }) {
                 <button
                   key={a.id}
                   type="button"
-                  onClick={() => setModalArea(a.id)}
+                  onClick={() => {
+                    setModalArea(a.id);
+                    setIntensidade(undefined);
+                  }}
                   className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
                     modalArea === a.id
                       ? "border-brand bg-brand/10 text-snow"
@@ -652,18 +663,54 @@ function DashboardInner({ displayName }: { displayName: string }) {
               ))}
             </div>
 
+            {/* Sugestões da área — mata a "nota em branco", 1 toque preenche */}
+            {areaDoModal && templatesDaArea(areaDoModal.catalogId).length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-1.5">
+                {templatesDaArea(areaDoModal.catalogId).map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => {
+                      setNota(t.label);
+                      setIntensidade(t.intensity);
+                    }}
+                    className={`rounded-[var(--radius-pill)] border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                      nota === t.label
+                        ? "border-brand bg-brand/10 text-snow"
+                        : "border-line bg-surface text-faint hover:text-snow"
+                    }`}
+                  >
+                    {t.label}
+                    {t.intensity === 2 && (
+                      <span className="ml-1 text-brand">2×</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* Prova: nota */}
             <label
-              className="mt-5 block text-xs font-medium text-muted"
+              className="mt-5 flex items-baseline justify-between text-xs font-medium text-muted"
               htmlFor="prova-nota"
             >
-              O que você fez? <span className="text-brand">(sua prova)</span>
+              <span>
+                O que você fez? <span className="text-brand">(sua prova)</span>
+              </span>
+              {intensidade === 2 && (
+                <span className="text-brand">2× XP nesta ação</span>
+              )}
             </label>
             <textarea
               id="prova-nota"
               rows={3}
               value={nota}
-              onChange={(e) => setNota(e.target.value)}
+              onChange={(e) => {
+                setNota(e.target.value);
+                // Edição manual desarma o 2x sugerido pelo chip — só a
+                // intensidade escolhida explicitamente vale (nunca "de graça").
+                setIntensidade(undefined);
+              }}
               placeholder={
                 areaDoModal
                   ? `Ex.: 40min de ${areaDoModal.nome.toLowerCase()} — o que rolou?`

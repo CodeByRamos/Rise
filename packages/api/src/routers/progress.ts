@@ -336,6 +336,7 @@ export const progressRouter = router({
           id: a.id,
           nome: a.name,
           cor: a.colorToken,
+          catalogId: a.catalogId,
           baseXp:
             a.catalogId && BASE_XP.has(a.catalogId)
               ? BASE_XP.get(a.catalogId)!
