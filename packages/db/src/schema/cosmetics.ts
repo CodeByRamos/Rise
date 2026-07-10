@@ -84,6 +84,26 @@ export const notifications = pgTable(
   (t) => [index("notifications_user_idx").on(t.userId, t.createdAt)],
 );
 
+// Inscrições Web Push (Sprint 6 — notificações). Uma linha por navegador;
+// endpoint é único globalmente (spec Push API). Envio é fire-and-forget e
+// event-driven (follow/reação) — sem scheduler nesta fase.
+export const pushSubscriptions = pgTable(
+  "push_subscriptions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    endpoint: text("endpoint").notNull().unique(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [index("push_subscriptions_user_idx").on(t.userId)],
+);
+
 // Grafo social: quem segue quem (doc 08 — FriendEdge/Follow).
 export const follows = pgTable(
   "follows",

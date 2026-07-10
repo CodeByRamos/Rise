@@ -2,6 +2,7 @@ import { z } from "zod";
 import { and, desc, eq, sql, inArray } from "drizzle-orm";
 import { feedItems, profiles, cosmeticItems, reactions, follows, notifications } from "@rise/db";
 import { router, protectedProcedure } from "../trpc";
+import { enviarPush } from "../lib/push";
 
 export const feedRouter = router({
   /**
@@ -84,6 +85,17 @@ export const feedRouter = router({
           type: "reaction",
           actorId: userId,
           feedItemId: input.feedItemId,
+        });
+        // Push best-effort (nunca bloqueia nem quebra a reação).
+        const quem = await ctx.db
+          .select({ nome: profiles.displayName })
+          .from(profiles)
+          .where(eq(profiles.userId, userId))
+          .limit(1);
+        void enviarPush(ctx.db, dono[0].userId, {
+          title: "Força recebida",
+          body: `${quem[0]?.nome ?? "Alguém"} deu Força ao seu marco.`,
+          url: "/notificacoes",
         });
       }
       return { reagindo: true as const };

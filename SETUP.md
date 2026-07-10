@@ -143,8 +143,27 @@ Já documentado em [DEPLOY.md](DEPLOY.md) — resumo: importe `CodeByRamos/Rise`
 - [ ] Login + registro de ação funcionando local
 - [ ] Deploy Vercel com as 4 env vars + Site URL de produção no Auth
 
+## 9. Web Push (opcional — notificações no navegador)
+
+Sem estas chaves o app funciona normal (o botão "Ativar" simplesmente não aparece). Para ligar:
+
+1. Gere o par de chaves VAPID (uma vez só):
+   ```powershell
+   npx web-push generate-vapid-keys
+   ```
+2. Adicione ao `apps/web/.env.local` (e às env vars do Vercel):
+   ```
+   VAPID_PUBLIC_KEY="<Public Key gerada>"
+   VAPID_PRIVATE_KEY="<Private Key gerada>"
+   VAPID_SUBJECT="mailto:seu-email@exemplo.com"
+   ```
+3. Aplique a migração `0012` (`db:migrate`, tabela `push_subscriptions`).
+4. No app: **Notificações → Ativar** → aceite a permissão do navegador.
+
+Hoje dispara em: seguidor novo e Força recebida. Push exige HTTPS (funciona em `localhost` e no Vercel; não funciona em IP local).
+
 ## Ainda não precisa configurar (fases futuras)
 
 - **Stripe** (Premium/billing — Sprint 7): sem chaves, o app roda 100% no tier Free.
-- **Resend / push** (e-mail e notificações nativas — Sprint 6): notificações in-app já funcionam sem nada.
+- **Resend** (e-mail transacional — Sprint 6): notificações in-app e push já funcionam sem nada.
 - **PostHog / Sentry** (observabilidade): opcionais, o app não depende deles.

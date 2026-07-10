@@ -3,6 +3,7 @@ import { and, eq, ne, desc, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { follows, users, profiles, userStats, cosmeticItems, notifications } from "@rise/db";
 import { router, protectedProcedure } from "../trpc";
+import { enviarPush } from "../lib/push";
 
 export const socialRouter = router({
   /** Descobrir pessoas: perfis públicos ativos, ordenados por Nível Rise. */
@@ -58,6 +59,17 @@ export const socialRouter = router({
         userId: input.targetUserId,
         type: "follow",
         actorId: ctx.userId,
+      });
+      // Push best-effort (nunca bloqueia nem quebra o follow).
+      const quem = await ctx.db
+        .select({ nome: profiles.displayName })
+        .from(profiles)
+        .where(eq(profiles.userId, ctx.userId))
+        .limit(1);
+      void enviarPush(ctx.db, input.targetUserId, {
+        title: "Novo seguidor no Rise",
+        body: `${quem[0]?.nome ?? "Alguém"} começou a seguir sua evolução.`,
+        url: "/notificacoes",
       });
       return { seguindo: true as const };
     }),

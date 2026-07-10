@@ -11,6 +11,7 @@ import { socialRouter } from "./routers/social";
 import { leagueRouter } from "./routers/league";
 import { classWarRouter } from "./routers/class-war";
 import { seasonRouter } from "./routers/season";
+import { pushRouter } from "./routers/push";
 import { notificationRouter } from "./routers/notification";
 
 /** Router raiz do Rise. Consumido type-safe por apps/web e apps/mobile. */
@@ -27,6 +28,7 @@ export const appRouter = router({
   league: leagueRouter,
   classWar: classWarRouter,
   season: seasonRouter,
+  push: pushRouter,
   notification: notificationRouter,
 });
 
