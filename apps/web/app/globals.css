@@ -47,6 +47,24 @@
   --area-espiritualidade: #e879f9;
   --area-relacionamentos: #fb7185;
   --area-trabalho: #38bdf8;
+  /* Esporte & movimento */
+  --area-corrida: #f87171;
+  --area-ciclismo: #4ade80;
+  --area-natacao: #0ea5e9;
+  --area-yoga: #c4b5fd;
+  --area-escalada: #d97706;
+  --area-danca: #ec4899;
+  --area-natureza: #16a34a;
+  /* Arte & criação */
+  --area-arte: #d946ef;
+  --area-escrita: #8b5cf6;
+  --area-fotografia: #64748b;
+  --area-culinaria: #f97316;
+  --area-jardinagem: #84cc16;
+  /* Mente & mundo */
+  --area-meditacao: #f0abfc;
+  --area-games: #818cf8;
+  --area-voluntariado: #f43f5e;
 }
 
 @layer base {
