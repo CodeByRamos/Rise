@@ -26,6 +26,7 @@ import { Temporada } from "./temporada";
 import { Diario } from "./diario";
 import { Avatar } from "./avatar";
 import { AppNav } from "./app-nav";
+import { Habitos } from "./habitos";
 import { SparkIcon, CheckIcon, XIcon, CameraIcon, PlusIcon } from "./icons";
 
 const nf = new Intl.NumberFormat("pt-BR");
@@ -543,6 +544,9 @@ function DashboardInner({ displayName }: { displayName: string }) {
             </div>
           </section>
         )}
+
+        {/* Hábitos de hoje — checklist recorrente que vira XP */}
+        <Habitos />
 
         {/* Temporada Solo — trilha mensal de marcos */}
         <Temporada />

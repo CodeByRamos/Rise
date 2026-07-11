@@ -16,6 +16,7 @@ import { notificationRouter } from "./routers/notification";
 import { subscriptionRouter } from "./routers/subscription";
 import { analysisRouter } from "./routers/analysis";
 import { goalRouter } from "./routers/goal";
+import { habitRouter } from "./routers/habit";
 
 /** Router raiz do Rise. Consumido type-safe por apps/web e apps/mobile. */
 export const appRouter = router({
@@ -36,6 +37,7 @@ export const appRouter = router({
   subscription: subscriptionRouter,
   analysis: analysisRouter,
   goal: goalRouter,
+  habit: habitRouter,
 });
 
 export type AppRouter = typeof appRouter;
