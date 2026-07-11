@@ -13,6 +13,7 @@ const LINKS = [
   { href: "/guerra-de-classes", rotulo: "Classes" },
   { href: "/descobrir", rotulo: "Descobrir" },
   { href: "/loja", rotulo: "Loja" },
+  { href: "/rise-plus", rotulo: "Rise+" },
   { href: "/perfil", rotulo: "Perfil" },
 ] as const;
 
@@ -25,16 +26,24 @@ export function AppNav() {
   const n = unread.data ?? 0;
 
   return (
-    <nav aria-label="Principal" className="flex flex-wrap items-center justify-end gap-1">
+    <nav
+      aria-label="Principal"
+      className="no-scrollbar -mr-1 flex min-w-0 flex-1 items-center gap-1 overflow-x-auto pl-3 sm:mr-0 sm:flex-none sm:flex-wrap sm:justify-end sm:overflow-visible sm:pl-0"
+    >
       {LINKS.map((l) => {
         const ativo = pathname === l.href;
+        const risePlus = l.href === "/rise-plus";
         return (
           <Link
             key={l.href}
             href={l.href}
             aria-current={ativo ? "page" : undefined}
-            className={`rounded-[var(--radius-pill)] px-3 py-1.5 text-xs font-semibold transition-colors ${
-              ativo ? "bg-surface text-snow" : "text-muted hover:text-snow"
+            className={`shrink-0 whitespace-nowrap rounded-[var(--radius-pill)] px-3 py-1.5 text-xs font-semibold transition-colors ${
+              ativo
+                ? "bg-surface text-snow"
+                : risePlus
+                  ? "text-brand hover:text-brand-strong"
+                  : "text-muted hover:text-snow"
             }`}
           >
             {l.rotulo}
@@ -45,7 +54,7 @@ export function AppNav() {
         href="/notificacoes"
         aria-label={n > 0 ? `Notificações (${n} não lidas)` : "Notificações"}
         aria-current={pathname === "/notificacoes" ? "page" : undefined}
-        className={`relative inline-flex size-8 items-center justify-center rounded-full transition-colors ${
+        className={`relative inline-flex size-8 shrink-0 items-center justify-center rounded-full transition-colors ${
           pathname === "/notificacoes"
             ? "bg-surface text-snow"
             : "text-muted hover:text-snow"

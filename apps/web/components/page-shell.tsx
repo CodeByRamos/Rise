@@ -26,8 +26,8 @@ export function PageShell({
           }}
         />
         <div className="relative mx-auto w-full max-w-3xl px-5 pb-24 pt-6">
-          <header className="flex items-center justify-between">
-            <Link href="/" aria-label="Início">
+          <header className="flex items-center justify-between gap-2">
+            <Link href="/" aria-label="Início" className="shrink-0">
               <RiseWordmark size={24} />
             </Link>
             <AppNav />
