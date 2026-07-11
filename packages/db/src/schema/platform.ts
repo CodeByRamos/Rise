@@ -76,3 +76,22 @@ export const coachAnalyses = pgTable(
     index("coach_analyses_user_idx").on(t.userId, t.createdAt),
   ],
 );
+
+// Conversas com o Coach (camada Sonnet, cota no Free). Histórico + fonte da
+// cota diária: mensagens do usuário no dia civil contam contra o limite Free.
+export const coachMessages = pgTable(
+  "coach_messages",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    role: text("role").notNull(), // user | assistant
+    content: text("content").notNull(),
+    camada: text("camada"), // heuristica | haiku | sonnet | opus (só assistant)
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [index("coach_messages_user_idx").on(t.userId, t.createdAt)],
+);

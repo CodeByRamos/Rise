@@ -50,6 +50,21 @@ Cada item segue o formato: **o que**, **onde**, **o que obter**, **onde inserir*
 
 ---
 
+## 2b. Migração de banco `0015` — tabela `coach_messages`
+
+> Necessária para o **Coach conversacional** (chat com cota Free) — guarda o
+> histórico da conversa e é a fonte da cota diária.
+
+- **O que preciso configurar:** aplicar `packages/db/drizzle/0015_simple_dragon_man.sql`.
+- **Onde configurar:** Supabase → SQL Editor (ou `corepack pnpm --filter @rise/db migrate`).
+- **Como verificar:**
+  ```sql
+  select 1 from information_schema.tables where table_name = 'coach_messages';
+  ```
+  Deve retornar 1 linha. Depois, a página **/coach** deve enviar e receber mensagens.
+
+---
+
 ## 3. Coach de IA — chave da Anthropic (`ANTHROPIC_API_KEY`)
 
 > Já usada pelo Coach diário; a Análise Profunda semanal usa o modelo Opus.

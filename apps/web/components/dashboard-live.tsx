@@ -464,18 +464,26 @@ function DashboardInner({ displayName }: { displayName: string }) {
                 />
                 <Stat valor={`${multTxt}×`} rotulo="Bônus de streak" />
               </div>
-              <div className="mt-6 flex items-start gap-3 rounded-2xl border border-line bg-surface px-4 py-3">
+              <a
+                href="/coach"
+                className="mt-6 flex items-start gap-3 rounded-2xl border border-line bg-surface px-4 py-3 transition-colors hover:border-brand/50"
+              >
                 <RiseMark size={22} className="mt-0.5 shrink-0" />
                 <div className="min-w-0">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-faint">
-                    Coach
-                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-faint">
+                      Coach
+                    </p>
+                    <span className="text-[11px] font-medium text-brand">
+                      Conversar →
+                    </span>
+                  </div>
                   <p className="mt-0.5 text-sm leading-relaxed text-muted">
                     {coach.data?.texto ??
                       "Registre uma ação com prova — escreva o que fez ou anexe uma foto."}
                   </p>
                 </div>
-              </div>
+              </a>
             </div>
           </div>
         </section>

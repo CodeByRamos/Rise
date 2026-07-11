@@ -8,6 +8,7 @@ import { BellIcon } from "./icons";
 const LINKS = [
   { href: "/", rotulo: "Início" },
   { href: "/evolucao", rotulo: "Evolução" },
+  { href: "/coach", rotulo: "Coach" },
   { href: "/feed", rotulo: "Feed" },
   { href: "/ligas", rotulo: "Ligas" },
   { href: "/guerra-de-classes", rotulo: "Classes" },
