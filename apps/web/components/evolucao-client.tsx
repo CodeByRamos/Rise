@@ -8,6 +8,7 @@ import { CheckIcon, LockIcon } from "./icons";
 import { GerenciarAreas } from "./gerenciar-areas";
 import { Amplitude } from "./amplitude";
 import { ResumoSemana } from "./resumo-semana";
+import { Metas } from "./metas";
 import { AnaliseProfunda } from "./analise-profunda";
 import { Heatmap } from "./heatmap";
 
@@ -151,6 +152,7 @@ export function EvolucaoClient() {
 
       <Amplitude />
       <ResumoSemana />
+      <Metas />
       <AnaliseProfunda />
       <Heatmap />
       <GerenciarAreas />
