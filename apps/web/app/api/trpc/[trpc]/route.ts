@@ -32,13 +32,23 @@ function handler(req: Request) {
           const supabase = createClient(url, anon, {
             auth: { persistSession: false, autoRefreshToken: false },
           });
-          const { data } = await supabase.auth.getUser(bearer.slice(7));
+          const { data, error } = await supabase.auth.getUser(bearer.slice(7));
+          // Token presente mas inválido/erro ⇒ falha explícita (o client
+          // renova e re-tenta) — nunca degradar silenciosamente p/ anônimo.
+          if (error && error.status !== 401 && error.status !== 403) {
+            throw new Error(`Auth indisponível: ${error.message}`);
+          }
           userId = data.user?.id ?? null;
           email = data.user?.email ?? null;
         } else {
           // Caminho web: sessão nos cookies.
           const supabase = await createSupabaseServerClient();
-          const { data } = await supabase.auth.getUser();
+          const { data, error } = await supabase.auth.getUser();
+          // Sem sessão é normal (rota pública); falha transitória do Auth
+          // com sessão presente não pode virar "anônimo" (UNAUTHORIZED falso).
+          if (error && error.status !== 400 && !/session/i.test(error.message)) {
+            throw new Error(`Auth indisponível: ${error.message}`);
+          }
           userId = data.user?.id ?? null;
           email = data.user?.email ?? null;
         }

@@ -113,8 +113,14 @@ export const coachRouter = router({
       nivel: nivelDeArea(a.xp),
       xp: a.xp,
     }));
+    // Streak só está VIVA se a última ação foi hoje ou ontem (fuso do
+    // usuário); mais antiga já quebrou — reportar 0 ao Coach, não o valor velho.
+    const ontem = dataLocalISO(new Date(Date.now() - 86_400_000), timezone);
+    const ultimoDia = streakRows[0]?.last ?? null;
     const streakGeral =
-      streakRows[0]?.last === hoje ? (streakRows[0]?.current ?? 0) : (streakRows[0]?.current ?? 0);
+      ultimoDia === hoje || ultimoDia === ontem
+        ? (streakRows[0]?.current ?? 0)
+        : 0;
     const dados: DadosCheckin = {
       displayName: null,
       acoesHoje: hojeCount[0]?.n ?? 0,

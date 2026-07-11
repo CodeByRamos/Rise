@@ -16,6 +16,12 @@ export const MULT_DIFICULDADE_MIN = 1.0;
 export const MULT_DIFICULDADE_MAX = 2.0;
 export const MULT_MISSAO_MIN = 1.0;
 export const MULT_MISSAO_MAX = 2.0;
+/**
+ * Teto diário de XP por área = fator × XP-base da área (doc 13 §10.1 — ex.:
+ * ~150 XP/dia em Programação, base 20). Acima do teto a ação ainda conta para
+ * streak/stats; o excedente de XP satura (anti-grinding).
+ */
+export const TETO_DIARIO_FATOR = 8;
 
 export interface XpGrantInput {
   /** Valor-base da ação, da tabela por área (5–50). */

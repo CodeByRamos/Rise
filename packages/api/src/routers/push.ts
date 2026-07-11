@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
 import { pushSubscriptions } from "@rise/db";
 import { router, protectedProcedure } from "../trpc";
@@ -23,20 +24,31 @@ export const pushRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Endpoint é único global: se trocou de dono (outro login no mesmo
-      // navegador), reatribui — o navegador pertence a quem está logado.
-      await ctx.db
-        .insert(pushSubscriptions)
-        .values({
-          userId: ctx.userId,
-          endpoint: input.endpoint,
-          p256dh: input.p256dh,
-          auth: input.auth,
-        })
-        .onConflictDoUpdate({
-          target: pushSubscriptions.endpoint,
-          set: { userId: ctx.userId, p256dh: input.p256dh, auth: input.auth },
-        });
+      try {
+        // Endpoint é único global: se trocou de dono (outro login no mesmo
+        // navegador), reatribui — o navegador pertence a quem está logado.
+        await ctx.db
+          .insert(pushSubscriptions)
+          .values({
+            userId: ctx.userId,
+            endpoint: input.endpoint,
+            p256dh: input.p256dh,
+            auth: input.auth,
+          })
+          .onConflictDoUpdate({
+            target: pushSubscriptions.endpoint,
+            set: { userId: ctx.userId, p256dh: input.p256dh, auth: input.auth },
+          });
+      } catch (e) {
+        // FK de user_id: bootstrap ainda não criou o usuário de domínio.
+        if (e instanceof Error && /foreign key|violates/i.test(e.message)) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: "Abra o app uma vez antes de ativar as notificações.",
+          });
+        }
+        throw e;
+      }
       return { ok: true as const };
     }),
 

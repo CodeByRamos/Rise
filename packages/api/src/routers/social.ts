@@ -51,6 +51,15 @@ export const socialRouter = router({
         )
         .returning({ f: follows.followerId });
       if (existe.length > 0) return { seguindo: false as const };
+      // Alvo precisa existir — sem o check, o FK vira 500 opaco.
+      const alvo = await ctx.db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.id, input.targetUserId))
+        .limit(1);
+      if (alvo.length === 0) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Usuário não encontrado." });
+      }
       await ctx.db
         .insert(follows)
         .values({ followerId: ctx.userId, followingId: input.targetUserId })

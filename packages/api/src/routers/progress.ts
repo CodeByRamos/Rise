@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { and, eq, isNull, inArray, desc } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
+import { and, eq, isNull, inArray, desc, like } from "drizzle-orm";
 import {
   users,
   profiles,
@@ -49,50 +50,89 @@ export const progressRouter = router({
     .input(
       z
         .object({
-          email: z.string().email().optional(),
           displayName: z.string().max(60).optional(),
         })
         .optional(),
     )
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.userId;
-      return ctx.db.transaction(async (tx) => {
-        const jaTem = await tx
-          .select({ id: users.id })
-          .from(users)
-          .where(eq(users.id, userId))
-          .limit(1);
-        if (jaTem.length > 0) return { criado: false as const, areas: 0 };
+      // E-mail SEMPRE do JWT verificado (ctx) — aceitar do cliente permitia
+      // "ocupar" o e-mail de outra pessoa e quebrar o bootstrap dela p/ sempre.
+      const email = ctx.email ?? `${userId}@rise.local`;
+      const prefixo = email.split("@")[0] ?? "rise";
+      const nome = input?.displayName ?? prefixo;
 
-        const email = input?.email ?? ctx.email ?? `${userId}@rise.local`;
-        const prefixo = email.split("@")[0] ?? "rise";
-        const nome = input?.displayName ?? prefixo;
+      try {
+        return await ctx.db.transaction(async (tx) => {
+          // onConflictDoNothing + returning: corrida de dois bootstraps
+          // simultâneos (mobile re-monta, web em outra aba) nunca vira 23505.
+          const inseridos = await tx
+            .insert(users)
+            .values({ id: userId, email, handle: derivarHandle(prefixo, userId) })
+            .onConflictDoNothing({ target: users.id })
+            .returning({ id: users.id });
+          if (inseridos.length === 0) return { criado: false as const, areas: 0 };
 
-        await tx.insert(users).values({
-          id: userId,
-          email,
-          handle: derivarHandle(prefixo, userId),
+          await tx.insert(profiles).values({ userId, displayName: nome }).onConflictDoNothing();
+          await tx.insert(userSettings).values({ userId }).onConflictDoNothing();
+          await tx.insert(userStats).values({ userId }).onConflictDoNothing();
+          await tx.insert(sparksWallet).values({ userId }).onConflictDoNothing();
+
+          let catalogo = await tx
+            .select()
+            .from(lifeAreaCatalog)
+            .where(inArray(lifeAreaCatalog.id, AREAS_INICIAIS));
+          // Banco migrado mas sem seed: cai no catálogo do código em vez de
+          // criar silenciosamente um usuário com zero Áreas (irrecuperável).
+          if (catalogo.length === 0) {
+            const doCodigo = LIFE_AREA_CATALOG.filter((c) =>
+              AREAS_INICIAIS.includes(c.id),
+            );
+            for (const c of doCodigo) {
+              await tx
+                .insert(lifeAreaCatalog)
+                .values({
+                  id: c.id,
+                  namePt: c.namePt,
+                  nameEn: c.nameEn,
+                  colorToken: c.colorToken,
+                  icon: c.icon,
+                  baseXpTable: { quick_log: c.baseXp, habit_check: c.baseXp },
+                  isDefault: true,
+                })
+                .onConflictDoNothing();
+            }
+            catalogo = await tx
+              .select()
+              .from(lifeAreaCatalog)
+              .where(inArray(lifeAreaCatalog.id, AREAS_INICIAIS));
+          }
+          for (const c of catalogo) {
+            await tx
+              .insert(lifeAreas)
+              .values({
+                userId,
+                catalogId: c.id,
+                name: c.namePt,
+                colorToken: c.colorToken,
+                icon: c.icon,
+              })
+              .onConflictDoNothing();
+          }
+          return { criado: true as const, areas: catalogo.length };
         });
-        await tx.insert(profiles).values({ userId, displayName: nome });
-        await tx.insert(userSettings).values({ userId });
-        await tx.insert(userStats).values({ userId });
-        await tx.insert(sparksWallet).values({ userId });
-
-        const catalogo = await tx
-          .select()
-          .from(lifeAreaCatalog)
-          .where(inArray(lifeAreaCatalog.id, AREAS_INICIAIS));
-        for (const c of catalogo) {
-          await tx.insert(lifeAreas).values({
-            userId,
-            catalogId: c.id,
-            name: c.namePt,
-            colorToken: c.colorToken,
-            icon: c.icon,
+      } catch (e) {
+        // UNIQUE(email): conta de Auth recriada com o mesmo e-mail (uuid novo)
+        // — erro claro em vez de 500 opaco e permanente.
+        if (e instanceof Error && /users_email_unique|duplicate key/i.test(e.message)) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message:
+              "Já existe um perfil Rise com este e-mail (de uma conta anterior). Fale com o suporte para religar seus dados.",
           });
         }
-        return { criado: true as const, areas: catalogo.length };
-      });
+        throw e;
+      }
     }),
 
   /**
@@ -139,7 +179,15 @@ export const progressRouter = router({
         })
         .from(actionLogs)
         .innerJoin(lifeAreas, eq(actionLogs.lifeAreaId, lifeAreas.id))
-        .leftJoin(xpEvents, eq(xpEvents.actionLogId, actionLogs.id))
+        // Só o evento DA AÇÃO (act:%): missão concluída grava um 2º xp_event
+        // no mesmo action_log e duplicava a linha no diário.
+        .leftJoin(
+          xpEvents,
+          and(
+            eq(xpEvents.actionLogId, actionLogs.id),
+            like(xpEvents.idempotencyKey, "act:%"),
+          ),
+        )
         .where(eq(actionLogs.userId, ctx.userId))
         .orderBy(desc(actionLogs.id))
         .limit(input?.limite ?? 12);

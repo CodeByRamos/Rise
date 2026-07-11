@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { and, desc, eq, sql, inArray } from "drizzle-orm";
 import { feedItems, profiles, cosmeticItems, reactions, follows, notifications } from "@rise/db";
 import { router, protectedProcedure } from "../trpc";
@@ -69,16 +70,20 @@ export const feedRouter = router({
         )
         .returning({ feedItemId: reactions.feedItemId });
       if (removed.length > 0) return { reagindo: false as const };
-      await ctx.db
-        .insert(reactions)
-        .values({ feedItemId: input.feedItemId, userId })
-        .onConflictDoNothing();
-      // Notifica o dono do marco (nunca a si mesmo).
+      // Marco precisa existir ANTES do insert — FK inválido virava 500 opaco.
       const dono = await ctx.db
         .select({ userId: feedItems.userId })
         .from(feedItems)
         .where(eq(feedItems.id, input.feedItemId))
         .limit(1);
+      if (!dono[0]) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Marco não encontrado." });
+      }
+      await ctx.db
+        .insert(reactions)
+        .values({ feedItemId: input.feedItemId, userId })
+        .onConflictDoNothing();
+      // Notifica o dono do marco (nunca a si mesmo).
       if (dono[0] && dono[0].userId !== userId) {
         await ctx.db.insert(notifications).values({
           userId: dono[0].userId,

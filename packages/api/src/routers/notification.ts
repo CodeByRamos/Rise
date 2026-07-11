@@ -20,7 +20,7 @@ export const notificationRouter = router({
   /** Lista as notificações recentes com dados do ator. */
   list: protectedProcedure
     .input(z.object({ limite: z.number().int().min(1).max(50).default(30) }).optional())
-    .query(async ({ ctx }) => {
+    .query(async ({ ctx, input }) => {
       return ctx.db
         .select({
           id: notifications.id,
@@ -40,7 +40,7 @@ export const notificationRouter = router({
         .leftJoin(feedItems, eq(feedItems.id, notifications.feedItemId))
         .where(eq(notifications.userId, ctx.userId))
         .orderBy(desc(notifications.id))
-        .limit(30);
+        .limit(input?.limite ?? 30);
     }),
 
   /** Marca todas como lidas. */

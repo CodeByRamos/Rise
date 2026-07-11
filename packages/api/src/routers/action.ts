@@ -24,6 +24,7 @@ import {
   aplicarAcaoComAmortecedores,
   avaliarConquistas,
   FREEZES_MAX,
+  TETO_DIARIO_FATOR,
   type StreakResultadoAmortecido,
 } from "@rise/core";
 import { router, protectedProcedure } from "../trpc";
@@ -75,22 +76,7 @@ export const actionRouter = router({
     const userId = ctx.userId;
 
     return ctx.db.transaction(async (tx) => {
-      // 1. Idempotência: já registramos esta ação do cliente?
-      const jaExiste = await tx
-        .select({ id: actionLogs.id })
-        .from(actionLogs)
-        .where(
-          and(
-            eq(actionLogs.userId, userId),
-            eq(actionLogs.clientActionId, input.clientActionId),
-          ),
-        )
-        .limit(1);
-      if (jaExiste.length > 0) {
-        return { deduped: true as const, actionLogId: jaExiste[0]!.id };
-      }
-
-      // 2. Usuário (timezone p/ dia civil do streak) + Área da Vida.
+      // 1. Leituras de contexto (sem efeito): usuário, descanso e Área.
       const userRows = await tx
         .select({ timezone: users.timezone })
         .from(users)
@@ -122,6 +108,50 @@ export const actionRouter = router({
           message: "Área da Vida não encontrada.",
         });
       }
+      // Área arquivada não aceita ação: o XP entraria no ledger mas sumiria
+      // das telas (todas filtram isArchived=false) — confusão garantida.
+      if (area.isArchived) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Esta Área está arquivada. Reative-a para registrar ações.",
+        });
+      }
+
+      // 2. Idempotência ATÔMICA: o INSERT do action_log é a PRIMEIRA escrita
+      // da transação. Replay concorrente do mesmo clientActionId bloqueia no
+      // unique (user, client_action_id) e recebe 0 linhas → deduped, sem
+      // nenhum efeito duplicado (streak/missão/XP rodam só depois daqui).
+      const logInserido = await tx
+        .insert(actionLogs)
+        .values({
+          userId,
+          lifeAreaId: area.id,
+          taskId: input.taskId ?? null,
+          clientActionId: input.clientActionId,
+          kind: input.kind,
+          source: "manual",
+          note: input.note ?? null,
+          photoPath: input.photoPath ?? null,
+          payload: input.payload ?? {},
+        })
+        .onConflictDoNothing({
+          target: [actionLogs.userId, actionLogs.clientActionId],
+        })
+        .returning({ id: actionLogs.id });
+      if (logInserido.length === 0) {
+        const existente = await tx
+          .select({ id: actionLogs.id })
+          .from(actionLogs)
+          .where(
+            and(
+              eq(actionLogs.userId, userId),
+              eq(actionLogs.clientActionId, input.clientActionId),
+            ),
+          )
+          .limit(1);
+        return { deduped: true as const, actionLogId: existente[0]?.id ?? 0 };
+      }
+      const actionLogId = logInserido[0]!.id;
 
       // 3. Sequências (área + geral) com amortecedores (doc 13 §5.3):
       //    perdão automático (grátis, streak ≥ 14, 1×/14 dias via grace_until)
@@ -198,13 +228,19 @@ export const actionRouter = router({
             })
             .where(eq(streaks.id, atual.id));
         } else {
-          await tx.insert(streaks).values({
-            userId,
-            lifeAreaId,
-            currentCount: r.currentCount,
-            longestCount: r.longestCount,
-            lastActiveDate: r.lastActiveDate,
-          });
+          // onConflictDoNothing: corrida de duas primeiras-ações simultâneas
+          // não pode duplicar a linha (o índice parcial global garante 1 por
+          // usuário; a 1ª tx vence e já registrou o dia).
+          await tx
+            .insert(streaks)
+            .values({
+              userId,
+              lifeAreaId,
+              currentCount: r.currentCount,
+              longestCount: r.longestCount,
+              lastActiveDate: r.lastActiveDate,
+            })
+            .onConflictDoNothing();
         }
         if (r.freezeUsado || r.perdaoUsado) {
           await tx.insert(outbox).values({
@@ -257,43 +293,50 @@ export const actionRouter = router({
       // Bônus pontual aplica a UMA missão só (anti-empilhamento).
       const multMissao = avancam.length > 0 ? 1.5 : 1.0;
 
-      // 4. Domínio decide o XP — com o streak da área JÁ estendido por hoje.
+      // 4. Domínio decide o XP — com o streak da área JÁ estendido por hoje
+      // e o teto diário anti-grinding (doc 13 §10.1): soma o que a área já
+      // concedeu HOJE (dia civil do usuário) e passa só o restante.
+      const baseArea = baseXpDaArea(area.catalogId);
+      const tetoDiario = baseArea * TETO_DIARIO_FATOR;
+      const hojeXpRows = await tx
+        .select({
+          total: sql<number>`coalesce(sum(${xpEvents.amount}), 0)::int`,
+        })
+        .from(xpEvents)
+        .where(
+          and(
+            eq(xpEvents.userId, userId),
+            eq(xpEvents.lifeAreaId, area.id),
+            sql`${xpEvents.amount} > 0`,
+            sql`to_char(${xpEvents.createdAt} at time zone ${timezone}, 'YYYY-MM-DD') = ${hojeLocal}`,
+          ),
+        );
+      const jaHoje = Number(hojeXpRows[0]?.total ?? 0);
       const grant = computarConcessao({
-        baseAcao: baseXpDaArea(area.catalogId),
+        baseAcao: baseArea,
         multDificuldade: input.intensity,
         streakDias: streakArea.currentCount,
         multMissao,
         totalXpAtual: area.totalXp,
+        tetoDiarioRestante: Math.max(0, tetoDiario - jaHoje),
       });
 
-      // 5. action_log (imutável, idempotente) com a PROVA.
-      const inseridos = await tx
-        .insert(actionLogs)
-        .values({
+      // 5. xp_events: o ledger imutável (fonte da verdade). Chave inclui o
+      // userId — clientActionId vem do cliente e não pode colidir entre
+      // contas. Teto zerou o XP? A ação vale (streak/missões), o ledger não
+      // ganha linha de 0.
+      if (grant.amount > 0) {
+        await tx.insert(xpEvents).values({
           userId,
           lifeAreaId: area.id,
-          taskId: input.taskId ?? null,
-          clientActionId: input.clientActionId,
-          kind: input.kind,
-          source: "manual",
-          note: input.note ?? null,
-          photoPath: input.photoPath ?? null,
-          payload: input.payload ?? {},
-        })
-        .returning({ id: actionLogs.id });
-      const actionLogId = inseridos[0]!.id;
-
-      // 6. xp_events: o ledger imutável (fonte da verdade).
-      await tx.insert(xpEvents).values({
-        userId,
-        lifeAreaId: area.id,
-        actionLogId,
-        eventType: "xp.granted",
-        amount: grant.amount,
-        baseAmount: grant.baseAmount,
-        streakMult: grant.streakMult.toFixed(2),
-        idempotencyKey: `act:${input.clientActionId}`,
-      });
+          actionLogId,
+          eventType: "xp.granted",
+          amount: grant.amount,
+          baseAmount: grant.baseAmount,
+          streakMult: grant.streakMult.toFixed(2),
+          idempotencyKey: `act:${userId}:${input.clientActionId}`,
+        });
+      }
 
       // 6b. Avança missões; conclui as que bateram a meta (XP + Faíscas).
       const missoesCompletadas: {
@@ -314,18 +357,22 @@ export const actionRouter = router({
                 ],
               }
             : (m.payload as Record<string, unknown>);
-        const novoProgress = m.progress + 1;
-        const completou = novoProgress >= m.target;
-        await tx
+        // Incremento ATÔMICO (progress = progress + 1) com guard de status:
+        // duas ações concorrentes nunca perdem incremento nem completam a
+        // mesma missão duas vezes (a 2ª vê status != 'pending' → 0 linhas).
+        const upd = await tx
           .update(userMissions)
           .set({
-            progress: novoProgress,
+            progress: sql`${userMissions.progress} + 1`,
             payload: novoPayload,
-            ...(completou
-              ? { status: "completed" as const, completedAt: sql`now()` }
-              : {}),
+            status: sql`case when ${userMissions.progress} + 1 >= ${userMissions.target} then 'completed'::mission_status else ${userMissions.status} end`,
+            completedAt: sql`case when ${userMissions.progress} + 1 >= ${userMissions.target} then now() else ${userMissions.completedAt} end`,
           })
-          .where(eq(userMissions.id, m.id));
+          .where(
+            and(eq(userMissions.id, m.id), eq(userMissions.status, "pending")),
+          )
+          .returning({ status: userMissions.status });
+        const completou = upd[0]?.status === "completed";
 
         if (completou) {
           missoesCompletadas.push({

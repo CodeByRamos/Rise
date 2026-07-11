@@ -12,27 +12,53 @@ export const leagueRouter = router({
   week: protectedProcedure.query(async ({ ctx }) => {
     const inicio = inicioSemanaUTC(new Date());
 
-    // XP ganho por usuário na semana (só ganhos, não estornos).
-    const agregado = await ctx.db
+    // Top 50 por XP na semana, ordenado e cortado NO SQL — a versão anterior
+    // carregava todos os usuários pro Node e ordenava em JS (O(n) por request).
+    const top = await ctx.db
       .select({
         userId: xpEvents.userId,
         xp: sql<number>`sum(${xpEvents.amount})::int`,
       })
       .from(xpEvents)
       .where(and(gte(xpEvents.createdAt, inicio), gt(xpEvents.amount, 0)))
-      .groupBy(xpEvents.userId);
+      .groupBy(xpEvents.userId)
+      .orderBy(sql`2 desc`)
+      .limit(50);
 
-    const ordenado = agregado
-      .map((r) => ({ userId: r.userId, xp: r.xp }))
-      .sort((a, b) => b.xp - a.xp);
+    // Posição do caller: XP próprio + quantos somaram mais (2 queries baratas).
+    const meuRows = await ctx.db
+      .select({ xp: sql<number>`coalesce(sum(${xpEvents.amount}), 0)::int` })
+      .from(xpEvents)
+      .where(
+        and(
+          eq(xpEvents.userId, ctx.userId),
+          gte(xpEvents.createdAt, inicio),
+          gt(xpEvents.amount, 0),
+        ),
+      );
+    const meuXp = Number(meuRows[0]?.xp ?? 0);
 
-    const minhaPos = ordenado.findIndex((r) => r.userId === ctx.userId);
+    const statsRows = await ctx.db
+      .select({
+        total: sql<number>`count(*)::int`,
+        acima: sql<number>`count(*) filter (where soma > ${meuXp})::int`,
+      })
+      .from(
+        ctx.db
+          .select({
+            uid: xpEvents.userId,
+            soma: sql<number>`sum(${xpEvents.amount})`.as("soma"),
+          })
+          .from(xpEvents)
+          .where(and(gte(xpEvents.createdAt, inicio), gt(xpEvents.amount, 0)))
+          .groupBy(xpEvents.userId)
+          .as("semana"),
+      );
+    const totalParticipantes = Number(statsRows[0]?.total ?? 0);
     const eu =
-      minhaPos >= 0
-        ? { rank: minhaPos + 1, xp: ordenado[minhaPos]!.xp }
+      meuXp > 0
+        ? { rank: Number(statsRows[0]?.acima ?? 0) + 1, xp: meuXp }
         : { rank: null, xp: 0 };
-
-    const top = ordenado.slice(0, 50);
     const ids = top.map((t) => t.userId);
     const perfis =
       ids.length > 0
@@ -54,7 +80,7 @@ export const leagueRouter = router({
 
     return {
       inicioSemana: inicio,
-      totalParticipantes: ordenado.length,
+      totalParticipantes,
       eu,
       ranking: top.map((t, i) => {
         const p = mapa.get(t.userId);

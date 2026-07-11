@@ -1,9 +1,20 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
+import { ZodError } from "zod";
 import type { Context } from "./context";
 
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
+  // ZodError.message é um JSON.stringify das issues — sem este formatter, a
+  // UI mostrava um blob JSON pro usuário. Vira a mensagem da primeira issue
+  // (já escritas em pt-BR nos schemas).
+  errorFormatter({ shape, error }) {
+    if (error.cause instanceof ZodError) {
+      const primeira = error.cause.issues[0]?.message;
+      if (primeira) return { ...shape, message: primeira };
+    }
+    return shape;
+  },
 });
 
 export const router = t.router;

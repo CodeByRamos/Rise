@@ -85,7 +85,8 @@ export const profileRouter = router({
       const RESERVADOS = new Set([
         "rise", "admin", "api", "app", "entrar", "sair", "feed", "loja",
         "perfil", "evolucao", "u", "sobre", "ajuda", "suporte", "config",
-        "settings", "oficial", "suporte_rise",
+        "settings", "oficial", "suporte_rise", "redefinir", "notificacoes",
+        "descobrir", "ligas",
       ]);
       if (RESERVADOS.has(input.handle)) {
         throw new TRPCError({
@@ -124,7 +125,7 @@ export const profileRouter = router({
       if (!input.displayName && input.bio === undefined && !input.avatarPath) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Nada para atualizar." });
       }
-      await ctx.db
+      const atualizado = await ctx.db
         .update(profiles)
         .set({
           ...(input.displayName ? { displayName: input.displayName } : {}),
@@ -132,7 +133,15 @@ export const profileRouter = router({
           ...(input.avatarPath ? { avatarUrl: input.avatarPath } : {}),
           updatedAt: new Date(),
         })
-        .where(eq(profiles.userId, ctx.userId));
+        .where(eq(profiles.userId, ctx.userId))
+        .returning({ userId: profiles.userId });
+      // 0 linhas = perfil nem existe (bootstrap não rodou) — não mentir ok.
+      if (atualizado.length === 0) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Perfil não encontrado — recarregue o app e tente de novo.",
+        });
+      }
       return { ok: true as const };
     }),
 

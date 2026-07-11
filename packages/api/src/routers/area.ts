@@ -53,13 +53,18 @@ export const areaRouter = router({
           .where(eq(lifeAreas.id, existente[0].id));
         return { ok: true as const, reativada: true };
       }
-      await ctx.db.insert(lifeAreas).values({
-        userId: ctx.userId,
-        catalogId: c.id,
-        name: c.namePt,
-        colorToken: c.colorToken,
-        icon: c.icon,
-      });
+      // onConflictDoNothing: duplo-toque concorrente no mesmo chip do
+      // catálogo batia no unique parcial (user, catalog) → 23505 → 500.
+      await ctx.db
+        .insert(lifeAreas)
+        .values({
+          userId: ctx.userId,
+          catalogId: c.id,
+          name: c.namePt,
+          colorToken: c.colorToken,
+          icon: c.icon,
+        })
+        .onConflictDoNothing();
       return { ok: true as const, reativada: false };
     }),
 
