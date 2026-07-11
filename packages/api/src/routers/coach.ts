@@ -60,60 +60,63 @@ async function coletarContexto(
   const hoje = dataLocalISO(new Date(), timezone);
   const ontem = dataLocalISO(new Date(Date.now() - 86_400_000), timezone);
 
-  const areasRows = await db
-    .select({ nome: lifeAreas.name, xp: lifeAreas.totalXp })
-    .from(lifeAreas)
-    .where(and(eq(lifeAreas.userId, userId), eq(lifeAreas.isArchived, false)));
-
-  const streakRows = await db
-    .select({ current: streaks.currentCount, last: streaks.lastActiveDate })
-    .from(streaks)
-    .where(and(eq(streaks.userId, userId), isNull(streaks.lifeAreaId)))
-    .limit(1);
-
   const meiaNoiteLocal = dsql`(${hoje}::date::timestamp AT TIME ZONE ${timezone})`;
-  const hojeCount = await db
-    .select({ n: dsql<number>`count(*)::int` })
-    .from(actionLogs)
-    .where(
-      and(eq(actionLogs.userId, userId), gte(actionLogs.createdAt, meiaNoiteLocal)),
-    );
-  const semanaCount = await db
-    .select({ n: dsql<number>`count(*)::int` })
-    .from(actionLogs)
-    .where(
-      and(
-        eq(actionLogs.userId, userId),
-        gte(actionLogs.createdAt, dsql`now() - interval '7 days'`),
-      ),
-    );
-
-  const pendentes = await db
-    .select({
-      titulo: userMissions.title,
-      progress: userMissions.progress,
-      target: userMissions.target,
-    })
-    .from(userMissions)
-    .where(
-      and(
-        eq(userMissions.userId, userId),
-        eq(userMissions.assignedDate, hoje),
-        eq(userMissions.status, "pending"),
-      ),
-    );
-
-  const metasRows = await db
-    .select({
-      title: goals.title,
-      currentValue: goals.currentValue,
-      targetValue: goals.targetValue,
-      unit: goals.unit,
-    })
-    .from(goals)
-    .where(and(eq(goals.userId, userId), eq(goals.status, "active")))
-    .orderBy(dsql`${goals.dueAt} asc nulls last`)
-    .limit(3);
+  // Leituras independentes em paralelo (todas dependem só de userId + hoje).
+  const [areasRows, streakRows, hojeCount, semanaCount, pendentes, metasRows] =
+    await Promise.all([
+      db
+        .select({ nome: lifeAreas.name, xp: lifeAreas.totalXp })
+        .from(lifeAreas)
+        .where(and(eq(lifeAreas.userId, userId), eq(lifeAreas.isArchived, false))),
+      db
+        .select({ current: streaks.currentCount, last: streaks.lastActiveDate })
+        .from(streaks)
+        .where(and(eq(streaks.userId, userId), isNull(streaks.lifeAreaId)))
+        .limit(1),
+      db
+        .select({ n: dsql<number>`count(*)::int` })
+        .from(actionLogs)
+        .where(
+          and(
+            eq(actionLogs.userId, userId),
+            gte(actionLogs.createdAt, meiaNoiteLocal),
+          ),
+        ),
+      db
+        .select({ n: dsql<number>`count(*)::int` })
+        .from(actionLogs)
+        .where(
+          and(
+            eq(actionLogs.userId, userId),
+            gte(actionLogs.createdAt, dsql`now() - interval '7 days'`),
+          ),
+        ),
+      db
+        .select({
+          titulo: userMissions.title,
+          progress: userMissions.progress,
+          target: userMissions.target,
+        })
+        .from(userMissions)
+        .where(
+          and(
+            eq(userMissions.userId, userId),
+            eq(userMissions.assignedDate, hoje),
+            eq(userMissions.status, "pending"),
+          ),
+        ),
+      db
+        .select({
+          title: goals.title,
+          currentValue: goals.currentValue,
+          targetValue: goals.targetValue,
+          unit: goals.unit,
+        })
+        .from(goals)
+        .where(and(eq(goals.userId, userId), eq(goals.status, "active")))
+        .orderBy(dsql`${goals.dueAt} asc nulls last`)
+        .limit(3),
+    ]);
 
   const areas = areasRows.map((a: { nome: string; xp: number }) => ({
     nome: a.nome,

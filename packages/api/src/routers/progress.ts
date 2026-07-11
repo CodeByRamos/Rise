@@ -293,22 +293,48 @@ export const progressRouter = router({
   me: protectedProcedure.query(async ({ ctx }) => {
     const userId = ctx.userId;
 
-    const areasRows = await ctx.db
-      .select()
-      .from(lifeAreas)
-      .where(and(eq(lifeAreas.userId, userId), eq(lifeAreas.isArchived, false)));
+    // As cinco leituras abaixo são independentes — uma passada concorrente em
+    // vez de seis round-trips sequenciais (caminho mais quente do app).
+    const [areasRows, streakRows, walletRows, perfilRows, settingsRows] =
+      await Promise.all([
+        ctx.db
+          .select()
+          .from(lifeAreas)
+          .where(
+            and(eq(lifeAreas.userId, userId), eq(lifeAreas.isArchived, false)),
+          ),
+        ctx.db
+          .select({
+            current: streaks.currentCount,
+            longest: streaks.longestCount,
+            freezes: streaks.freezesAvailable,
+            pendingRepairValue: streaks.pendingRepairValue,
+            repairDeadline: streaks.repairDeadline,
+          })
+          .from(streaks)
+          .where(and(eq(streaks.userId, userId), isNull(streaks.lifeAreaId)))
+          .limit(1),
+        ctx.db
+          .select({ balance: sparksWallet.balance })
+          .from(sparksWallet)
+          .where(eq(sparksWallet.userId, userId))
+          .limit(1),
+        ctx.db
+          .select({
+            avatarUrl: profiles.avatarUrl,
+            equippedFrameId: profiles.equippedFrameId,
+            equippedThemeId: profiles.equippedThemeId,
+          })
+          .from(profiles)
+          .where(eq(profiles.userId, userId))
+          .limit(1),
+        ctx.db
+          .select({ restModeUntil: userSettings.restModeUntil })
+          .from(userSettings)
+          .where(eq(userSettings.userId, userId))
+          .limit(1),
+      ]);
 
-    const streakRows = await ctx.db
-      .select({
-        current: streaks.currentCount,
-        longest: streaks.longestCount,
-        freezes: streaks.freezesAvailable,
-        pendingRepairValue: streaks.pendingRepairValue,
-        repairDeadline: streaks.repairDeadline,
-      })
-      .from(streaks)
-      .where(and(eq(streaks.userId, userId), isNull(streaks.lifeAreaId)))
-      .limit(1);
     const sr = streakRows[0];
     const streakRepair =
       sr?.pendingRepairValue != null &&
@@ -324,27 +350,6 @@ export const progressRouter = router({
       })),
     );
 
-    const walletRows = await ctx.db
-      .select({ balance: sparksWallet.balance })
-      .from(sparksWallet)
-      .where(eq(sparksWallet.userId, userId))
-      .limit(1);
-
-    const perfilRows = await ctx.db
-      .select({
-        avatarUrl: profiles.avatarUrl,
-        equippedFrameId: profiles.equippedFrameId,
-        equippedThemeId: profiles.equippedThemeId,
-      })
-      .from(profiles)
-      .where(eq(profiles.userId, userId))
-      .limit(1);
-
-    const settingsRows = await ctx.db
-      .select({ restModeUntil: userSettings.restModeUntil })
-      .from(userSettings)
-      .where(eq(userSettings.userId, userId))
-      .limit(1);
     const restRaw = settingsRows[0]?.restModeUntil ?? null;
     const restModeUntil =
       restRaw && restRaw.getTime() > Date.now() ? restRaw : null;
