@@ -5,6 +5,7 @@ import {
   actionLogs,
   streaks,
   userMissions,
+  goals,
 } from "@rise/db";
 import { dataLocalISO, nivelDeArea } from "@rise/core";
 import {
@@ -108,6 +109,19 @@ export const coachRouter = router({
         ),
       );
 
+    // Metas ativas — dão ao Coach o "para onde subir" declarado pelo usuário.
+    const metasAtivas = await ctx.db
+      .select({
+        title: goals.title,
+        currentValue: goals.currentValue,
+        targetValue: goals.targetValue,
+        unit: goals.unit,
+      })
+      .from(goals)
+      .where(and(eq(goals.userId, userId), eq(goals.status, "active")))
+      .orderBy(dsql`${goals.dueAt} asc nulls last`)
+      .limit(3);
+
     const areas = areasRows.map((a) => ({
       nome: a.nome,
       nivel: nivelDeArea(a.xp),
@@ -145,7 +159,7 @@ export const coachRouter = router({
           client: createCoachClient(),
           req: {
             kind: "dailyCoach",
-            texto: `Check-in diário. Ações hoje: ${dados.acoesHoje}. Sequência: ${dados.streakGeral} dias. Missões pendentes: ${pendentes.map((p) => `${p.titulo} (${p.progress}/${p.target})`).join("; ") || "nenhuma"}. Responda em no máximo 3 frases curtas, PT-BR, tom de mentor.`,
+            texto: `Check-in diário. Ações hoje: ${dados.acoesHoje}. Sequência: ${dados.streakGeral} dias. Missões pendentes: ${pendentes.map((p) => `${p.titulo} (${p.progress}/${p.target})`).join("; ") || "nenhuma"}. Metas ativas: ${metasAtivas.map((m) => `${m.title} (${Number(m.currentValue)}/${Number(m.targetValue)}${m.unit ? ` ${m.unit}` : ""})`).join("; ") || "nenhuma declarada"}. Responda em no máximo 3 frases curtas, PT-BR, tom de mentor; se fizer sentido, conecte a próxima ação a uma meta.`,
           },
           ctx: { isPremium: false, sonnetQuotaExhausted: false },
           fatos: formatarFatos(fatos),
