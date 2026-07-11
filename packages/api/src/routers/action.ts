@@ -48,7 +48,7 @@ const logInput = z
     lifeAreaId: z.string().uuid(),
     clientActionId: z.string().uuid(),
     kind: z
-      .enum(["quick_log", "habit_check", "integration"])
+      .enum(["quick_log", "habit_check", "integration", "focus_session"])
       .default("quick_log"),
     intensity: z.number().min(1).max(2).optional(),
     taskId: z.string().uuid().optional(),
@@ -620,5 +620,34 @@ export const actionRouter = router({
         })),
       };
     });
+  }),
+
+  /**
+   * Resumo do Sistema de Foco: sessões e minutos concentrados (semana + total).
+   * Derivado dos action_logs de foco (kind='focus_session') — leitura pura.
+   */
+  focoResumo: protectedProcedure.query(async ({ ctx }) => {
+    const minutos = sql<number>`coalesce((${actionLogs.payload}->>'focusMinutes')::int, 0)`;
+    const rows = await ctx.db
+      .select({
+        sessoesSemana: sql<number>`count(*) filter (where ${actionLogs.createdAt} >= now() - interval '7 days')::int`,
+        minutosSemana: sql<number>`coalesce(sum(${minutos}) filter (where ${actionLogs.createdAt} >= now() - interval '7 days'), 0)::int`,
+        sessoesTotal: sql<number>`count(*)::int`,
+        minutosTotal: sql<number>`coalesce(sum(${minutos}), 0)::int`,
+      })
+      .from(actionLogs)
+      .where(
+        and(
+          eq(actionLogs.userId, ctx.userId),
+          eq(actionLogs.kind, "focus_session"),
+        ),
+      );
+    const r = rows[0];
+    return {
+      sessoesSemana: Number(r?.sessoesSemana ?? 0),
+      minutosSemana: Number(r?.minutosSemana ?? 0),
+      sessoesTotal: Number(r?.sessoesTotal ?? 0),
+      minutosTotal: Number(r?.minutosTotal ?? 0),
+    };
   }),
 });
