@@ -21,10 +21,12 @@ export const missionRouter = router({
     if (!u[0]) return [];
     const hoje = dataLocalISO(new Date(), u[0].timezone);
 
-    for (const t of MISSION_TEMPLATES) {
-      await ctx.db
-        .insert(userMissions)
-        .values({
+    // Insert em lote (idempotente pelo UNIQUE user+template+data): um round-trip
+    // em vez de um por template, em toda carga da Home.
+    await ctx.db
+      .insert(userMissions)
+      .values(
+        MISSION_TEMPLATES.map((t) => ({
           userId,
           templateId: t.id,
           title: t.title,
@@ -33,9 +35,9 @@ export const missionRouter = router({
           xpReward: t.xpReward,
           sparksReward: t.sparksReward,
           assignedDate: hoje,
-        })
-        .onConflictDoNothing();
-    }
+        })),
+      )
+      .onConflictDoNothing();
 
     const rows = await ctx.db
       .select()
