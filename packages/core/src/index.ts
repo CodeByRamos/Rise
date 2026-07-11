@@ -17,4 +17,5 @@ export * from "./achievement/catalog";
 export * from "./class/catalog";
 export * from "./action/templates";
 export * from "./season/season";
+export * from "./plan/entitlements";
 export * from "./events";

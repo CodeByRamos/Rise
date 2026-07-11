@@ -6,9 +6,12 @@ import {
   jsonb,
   boolean,
   timestamp,
+  uuid,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import { users } from "./identity";
 
 /** docs/08-banco-de-dados.md §12 — Billing & Plataforma (outbox, flags). */
 
@@ -40,3 +43,36 @@ export const featureFlags = pgTable("feature_flags", {
   enabled: boolean("enabled").default(false).notNull(),
   rollout: jsonb("rollout").$type<Record<string, unknown>>().default({}).notNull(),
 });
+
+// Análise Profunda do Coach (docs/14 §3, docs/12 §3) — camada Opus, gated
+// Premium. Persistida por período para NÃO recobrar o Opus a cada releitura
+// (uma análise por semana por usuário). `facts` guarda o bloco FATOS que
+// ancorou a geração (auditoria anti-alucinação).
+export const coachAnalyses = pgTable(
+  "coach_analyses",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    kind: text("kind").default("weekly_deep").notNull(),
+    model: text("model").notNull(),
+    periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
+    periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
+    facts: jsonb("facts").$type<Record<string, unknown>>().notNull(),
+    content: text("content").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    // Uma análise por (usuário, tipo, início-do-período): a 2ª geração da
+    // mesma semana é dedupe, não uma segunda cobrança de Opus.
+    uniqueIndex("coach_analyses_user_period_uq").on(
+      t.userId,
+      t.kind,
+      t.periodStart,
+    ),
+    index("coach_analyses_user_idx").on(t.userId, t.createdAt),
+  ],
+);

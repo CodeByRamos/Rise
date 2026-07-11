@@ -8,6 +8,7 @@ import { CheckIcon, LockIcon } from "./icons";
 import { GerenciarAreas } from "./gerenciar-areas";
 import { Amplitude } from "./amplitude";
 import { ResumoSemana } from "./resumo-semana";
+import { AnaliseProfunda } from "./analise-profunda";
 import { Heatmap } from "./heatmap";
 
 const nf = new Intl.NumberFormat("pt-BR");
@@ -150,6 +151,7 @@ export function EvolucaoClient() {
 
       <Amplitude />
       <ResumoSemana />
+      <AnaliseProfunda />
       <Heatmap />
       <GerenciarAreas />
     </div>

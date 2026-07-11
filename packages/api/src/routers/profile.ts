@@ -86,7 +86,7 @@ export const profileRouter = router({
         "rise", "admin", "api", "app", "entrar", "sair", "feed", "loja",
         "perfil", "evolucao", "u", "sobre", "ajuda", "suporte", "config",
         "settings", "oficial", "suporte_rise", "redefinir", "notificacoes",
-        "descobrir", "ligas",
+        "descobrir", "ligas", "rise-plus", "rise_plus", "planos", "assinar",
       ]);
       if (RESERVADOS.has(input.handle)) {
         throw new TRPCError({

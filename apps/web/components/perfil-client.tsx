@@ -6,7 +6,8 @@ import { trpc } from "@/lib/trpc/react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Avatar } from "./avatar";
 import { cssColor } from "./area-card";
-import { CameraIcon, CheckIcon, LockIcon, XIcon } from "./icons";
+import Link from "next/link";
+import { CameraIcon, CheckIcon, CrownIcon, LockIcon, XIcon } from "./icons";
 
 const COR_RARIDADE: Record<string, string> = {
   comum: "var(--color-muted)",
@@ -257,6 +258,9 @@ export function PerfilClient() {
         </form>
       </section>
 
+      {/* Plano Rise+ */}
+      <PlanoRise />
+
       {/* Classe principal */}
       <ClassePrincipal atual={p.mainClassId} />
 
@@ -298,6 +302,48 @@ export function PerfilClient() {
         )}
       </section>
     </div>
+  );
+}
+
+function PlanoRise() {
+  const status = trpc.subscription.status.useQuery();
+  const premium = status.data?.isPremium ?? false;
+  const plano = status.data?.plan;
+  const rotulo =
+    plano === "founder" ? "Rise Founder" : plano === "team" ? "Rise Teams" : "Rise+";
+
+  return (
+    <section
+      className={`rounded-[24px] border p-6 ${
+        premium
+          ? "border-brand/50 bg-brand/[0.06]"
+          : "border-line bg-surface-2"
+      }`}
+    >
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <p className="flex items-center gap-2 text-sm font-semibold text-snow">
+            <CrownIcon size={16} className={premium ? "text-brand" : "text-faint"} />
+            {premium ? rotulo : "Rise+"}
+          </p>
+          <p className="mt-1.5 text-sm leading-relaxed text-muted">
+            {premium
+              ? "Coach ilimitado, Análise Profunda semanal e estatísticas profundas — ativos."
+              : "Aprofunde sua evolução: Coach ilimitado, Análise Profunda semanal e estatísticas profundas. Sua progressão continua grátis."}
+          </p>
+        </div>
+      </div>
+      <Link
+        href="/rise-plus"
+        className={`mt-4 inline-flex items-center gap-2 rounded-[var(--radius-pill)] px-4 py-2.5 text-sm font-semibold transition-transform hover:scale-[1.02] active:scale-[0.98] ${
+          premium
+            ? "border border-line bg-surface text-snow hover:border-brand"
+            : "bg-brand text-void"
+        }`}
+      >
+        {premium ? "Gerenciar plano" : "Conhecer o Rise+"}
+      </Link>
+    </section>
   );
 }
 

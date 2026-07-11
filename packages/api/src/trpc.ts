@@ -1,6 +1,9 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
+import { eq } from "drizzle-orm";
+import { users } from "@rise/db";
+import { entitlementsDe, isPremium, type PlanTier } from "@rise/core";
 import type { Context } from "./context";
 
 const t = initTRPC.context<Context>().create({
@@ -35,4 +38,33 @@ export const protectedProcedure = t.procedure.use((opts) => {
     });
   }
   return opts.next({ ctx: { ...ctx, userId: ctx.userId } });
+});
+
+/**
+ * Procedure autenticada que carrega o plano do usuário e seus entitlements
+ * (docs/12). Uma leitura barata (índice `users_plan_idx`) só nas procedures que
+ * precisam decidir gating — não onera o caminho quente do registro de ação.
+ */
+export const planProcedure = protectedProcedure.use(async (opts) => {
+  const rows = await opts.ctx.db
+    .select({ plan: users.plan })
+    .from(users)
+    .where(eq(users.id, opts.ctx.userId))
+    .limit(1);
+  const plan = (rows[0]?.plan ?? "free") as PlanTier;
+  return opts.next({ ctx: { plan, entitlements: entitlementsDe(plan) } });
+});
+
+/**
+ * Procedure Premium: exige tier pago. Progressão central NUNCA passa por aqui —
+ * só profundidade de IA, analytics e cosmética (guardrail anti pay-to-win).
+ */
+export const premiumProcedure = planProcedure.use((opts) => {
+  if (!isPremium(opts.ctx.plan)) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Este é um recurso do Rise+. Assine para desbloquear.",
+    });
+  }
+  return opts.next();
 });

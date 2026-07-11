@@ -90,3 +90,23 @@ export function LockIcon({ size = 14, className }: IconProps) {
     </svg>
   );
 }
+
+/** Brilho — profundidade de IA (Análise Profunda). */
+export function SparklesIcon({ size = 16, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className}>
+      <path d="M12 3.5 13.6 9 19 10.5 13.6 12 12 17.5 10.4 12 5 10.5 10.4 9 12 3.5Z" />
+      <path d="M5 4.5v3M3.5 6h3M18 15v3M16.5 16.5h3" strokeWidth={1.6} />
+    </svg>
+  );
+}
+
+/** Coroa — selo do Rise+ (cosmético/status, nunca vantagem). */
+export function CrownIcon({ size = 16, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className}>
+      <path d="M4 8l3.5 3L12 5.5 16.5 11 20 8l-1.6 9.5H5.6L4 8Z" />
+      <path d="M5.6 17.5h12.8" strokeWidth={1.6} />
+    </svg>
+  );
+}

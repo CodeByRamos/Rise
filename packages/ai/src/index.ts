@@ -9,3 +9,4 @@ export * from "./facts";
 export * from "./persona";
 export * from "./tools";
 export * from "./client";
+export * from "./analysis";

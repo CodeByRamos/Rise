@@ -13,6 +13,8 @@ import { classWarRouter } from "./routers/class-war";
 import { seasonRouter } from "./routers/season";
 import { pushRouter } from "./routers/push";
 import { notificationRouter } from "./routers/notification";
+import { subscriptionRouter } from "./routers/subscription";
+import { analysisRouter } from "./routers/analysis";
 
 /** Router raiz do Rise. Consumido type-safe por apps/web e apps/mobile. */
 export const appRouter = router({
@@ -30,6 +32,8 @@ export const appRouter = router({
   season: seasonRouter,
   push: pushRouter,
   notification: notificationRouter,
+  subscription: subscriptionRouter,
+  analysis: analysisRouter,
 });
 
 export type AppRouter = typeof appRouter;
