@@ -73,6 +73,14 @@ export function ChevronUpIcon({ size = 16, className }: IconProps) {
   );
 }
 
+export function ChevronDownIcon({ size = 16, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className}>
+      <path d="M5 9l7 7 7-7" strokeWidth={2.4} />
+    </svg>
+  );
+}
+
 export function BellIcon({ size = 18, className }: IconProps) {
   return (
     <svg {...base(size)} className={className}>
