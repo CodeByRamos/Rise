@@ -624,11 +624,17 @@ function DashboardInner({ displayName }: { displayName: string }) {
           onClick={fecharModal}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="registro-titulo"
             className="animate-pop-in w-full max-w-md rounded-t-[24px] border border-line bg-surface-2 p-6 sm:rounded-[24px]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h3 className="font-display text-lg font-semibold text-snow">
+              <h3
+                id="registro-titulo"
+                className="font-display text-lg font-semibold text-snow"
+              >
                 Registrar ação
               </h3>
               <button
@@ -764,9 +770,17 @@ function DashboardInner({ displayName }: { displayName: string }) {
       {/* Boas-vindas (onboarding leve, 1x) */}
       {mostrarWelcome && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-void/80 px-5 backdrop-blur-sm">
-          <div className="animate-pop-in w-full max-w-md rounded-[28px] border border-line bg-surface-2 p-8">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="welcome-titulo"
+            className="animate-pop-in w-full max-w-md rounded-[28px] border border-line bg-surface-2 p-8"
+          >
             <RiseMark size={44} />
-            <h2 className="font-display mt-5 text-2xl font-semibold tracking-tight text-snow">
+            <h2
+              id="welcome-titulo"
+              className="font-display mt-5 text-2xl font-semibold tracking-tight text-snow"
+            >
               Bem-vindo ao Rise, {displayName}.
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-muted">
@@ -814,7 +828,12 @@ function DashboardInner({ displayName }: { displayName: string }) {
           className="fixed inset-0 z-50 flex items-center justify-center bg-void/70 backdrop-blur-sm"
           onClick={() => setCel(null)}
         >
-          <div className="animate-pop-in flex flex-col items-center gap-4 rounded-[28px] border border-line bg-surface-2 px-12 py-10 text-center">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Subiu de nível em ${cel.nome}: nível ${cel.nivel}`}
+            className="animate-pop-in flex flex-col items-center gap-4 rounded-[28px] border border-line bg-surface-2 px-12 py-10 text-center"
+          >
             <RiseMark size={56} />
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand">
