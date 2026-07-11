@@ -402,4 +402,77 @@ export const progressRouter = router({
       }),
     };
   }),
+
+  /**
+   * Calendário de atividade: contagem de ações por dia (fuso do usuário) de um
+   * mês. Alimenta a grade mensal navegável do Histórico.
+   */
+  calendario: protectedProcedure
+    .input(
+      z.object({
+        ano: z.number().int().min(2020).max(2100),
+        mes: z.number().int().min(1).max(12),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const uRows = await ctx.db
+        .select({ tz: users.timezone })
+        .from(users)
+        .where(eq(users.id, ctx.userId))
+        .limit(1);
+      const tz = uRows[0]?.tz ?? "America/Sao_Paulo";
+      const ym = `${input.ano}-${String(input.mes).padStart(2, "0")}`;
+      const diaExpr = dsql<string>`to_char((${actionLogs.createdAt} at time zone ${tz}), 'YYYY-MM-DD')`;
+      const rows = await ctx.db
+        .select({ dia: diaExpr, n: dsql<number>`count(*)::int` })
+        .from(actionLogs)
+        .where(
+          and(
+            eq(actionLogs.userId, ctx.userId),
+            dsql`to_char((${actionLogs.createdAt} at time zone ${tz}), 'YYYY-MM') = ${ym}`,
+          ),
+        )
+        .groupBy(dsql`1`);
+      return { ym, dias: rows.map((r) => ({ dia: r.dia, n: Number(r.n) })) };
+    }),
+
+  /** Detalhe de um dia (fuso do usuário): as provas registradas naquela data. */
+  diaDetalhe: protectedProcedure
+    .input(z.object({ data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }))
+    .query(async ({ ctx, input }) => {
+      const uRows = await ctx.db
+        .select({ tz: users.timezone })
+        .from(users)
+        .where(eq(users.id, ctx.userId))
+        .limit(1);
+      const tz = uRows[0]?.tz ?? "America/Sao_Paulo";
+      const rows = await ctx.db
+        .select({
+          id: actionLogs.id,
+          note: actionLogs.note,
+          photoPath: actionLogs.photoPath,
+          kind: actionLogs.kind,
+          createdAt: actionLogs.createdAt,
+          areaNome: lifeAreas.name,
+          areaCor: lifeAreas.colorToken,
+          xp: xpEvents.amount,
+        })
+        .from(actionLogs)
+        .innerJoin(lifeAreas, eq(actionLogs.lifeAreaId, lifeAreas.id))
+        .leftJoin(
+          xpEvents,
+          and(
+            eq(xpEvents.actionLogId, actionLogs.id),
+            like(xpEvents.idempotencyKey, "act:%"),
+          ),
+        )
+        .where(
+          and(
+            eq(actionLogs.userId, ctx.userId),
+            dsql`to_char((${actionLogs.createdAt} at time zone ${tz}), 'YYYY-MM-DD') = ${input.data}`,
+          ),
+        )
+        .orderBy(desc(actionLogs.id));
+      return rows;
+    }),
 });
