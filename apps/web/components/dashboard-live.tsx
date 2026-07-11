@@ -134,15 +134,28 @@ function DashboardInner({ displayName }: { displayName: string }) {
   // Bootstrap idempotente no primeiro acesso.
   const boot = trpc.progress.bootstrap.useMutation({
     onSettled: () => {
+      try {
+        localStorage.setItem("rise_booted", "1");
+      } catch {
+        // sem localStorage → só não pula o bootstrap nas próximas visitas
+      }
       setBooted(true);
       void utils.progress.me.invalidate();
     },
   });
   useEffect(() => {
-    if (!bootStarted.current) {
-      bootStarted.current = true;
-      boot.mutate({});
+    if (bootStarted.current) return;
+    bootStarted.current = true;
+    // Já provisionado neste dispositivo? Pula a transação de bootstrap (que
+    // rodava em TODA carga da Home) e libera as queries direto.
+    let jaBootou = false;
+    try {
+      jaBootou = localStorage.getItem("rise_booted") === "1";
+    } catch {
+      // sem localStorage → roda o bootstrap (idempotente no servidor)
     }
+    if (jaBootou) setBooted(true);
+    else boot.mutate({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
