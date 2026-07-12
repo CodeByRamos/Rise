@@ -67,6 +67,84 @@ function Stat({
   );
 }
 
+interface MissaoUI {
+  id: string;
+  titulo: string;
+  scope: "daily" | "weekly";
+  progress: number;
+  target: number;
+  xpReward: number;
+  sparksReward: number;
+  completa: boolean;
+}
+
+function MissaoCard({ m }: { m: MissaoUI }) {
+  const pct = m.target > 0 ? Math.min(100, Math.round((m.progress / m.target) * 100)) : 0;
+  return (
+    <div
+      className={`rounded-[var(--radius-card)] border p-4 transition-colors ${
+        m.completa
+          ? "border-[color-mix(in_srgb,var(--color-brand)_45%,transparent)] bg-brand/5"
+          : "border-line bg-surface"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm font-semibold leading-snug text-snow">{m.titulo}</p>
+        {m.completa && <CheckIcon size={16} className="shrink-0 text-brand" />}
+      </div>
+      <div className="tnum mt-2 flex items-center justify-between text-xs text-muted">
+        <span>
+          {Math.min(m.progress, m.target)}/{m.target}
+        </span>
+        <span className="inline-flex items-center gap-1 font-semibold text-brand">
+          +{m.xpReward} XP · +{m.sparksReward}
+          <SparkIcon size={11} />
+        </span>
+      </div>
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-graphite">
+        <div
+          className="h-full rounded-full bg-brand transition-[width] duration-500"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function GrupoMissoes({ titulo, itens }: { titulo: string; itens: MissaoUI[] }) {
+  if (itens.length === 0) return null;
+  const feitas = itens.filter((m) => m.completa).length;
+  return (
+    <div>
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-faint">
+          {titulo}
+        </h3>
+        <span className="tnum text-xs text-muted">
+          {feitas}/{itens.length}
+        </span>
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {itens.map((m) => (
+          <MissaoCard key={m.id} m={m} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MissoesSecao({ missoes }: { missoes: MissaoUI[] }) {
+  if (missoes.length === 0) return null;
+  const diarias = missoes.filter((m) => m.scope === "daily");
+  const semanais = missoes.filter((m) => m.scope === "weekly");
+  return (
+    <section className="animate-rise-in mt-10 space-y-6" style={{ animationDelay: "90ms" }}>
+      <GrupoMissoes titulo="Missões de hoje" itens={diarias} />
+      <GrupoMissoes titulo="Missões da semana" itens={semanais} />
+    </section>
+  );
+}
+
 function Skeleton() {
   return (
     <div className="relative mx-auto w-full max-w-5xl px-5 pt-6">
@@ -502,61 +580,8 @@ function DashboardInner({ displayName }: { displayName: string }) {
           </div>
         </section>
 
-        {/* Missões de hoje */}
-        {(missoes.data?.length ?? 0) > 0 && (
-          <section
-            className="animate-rise-in mt-10"
-            style={{ animationDelay: "90ms" }}
-          >
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-faint">
-                Missões de hoje
-              </h2>
-              <span className="tnum text-xs text-muted">
-                {missoes.data!.filter((m) => m.completa).length}/
-                {missoes.data!.length} completas
-              </span>
-            </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              {missoes.data!.map((m) => (
-                <div
-                  key={m.id}
-                  className={`rounded-[var(--radius-card)] border p-4 ${
-                    m.completa
-                      ? "border-[color-mix(in_srgb,var(--color-brand)_45%,transparent)] bg-brand/5"
-                      : "border-line bg-surface"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-semibold leading-snug text-snow">
-                      {m.titulo}
-                    </p>
-                    {m.completa && (
-                      <CheckIcon size={16} className="shrink-0 text-brand" />
-                    )}
-                  </div>
-                  <div className="tnum mt-2 flex items-center justify-between text-xs text-muted">
-                    <span>
-                      {m.progress}/{m.target}
-                    </span>
-                    <span className="inline-flex items-center gap-1 font-semibold text-brand">
-                      +{m.xpReward} XP · +{m.sparksReward}
-                      <SparkIcon size={11} />
-                    </span>
-                  </div>
-                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-graphite">
-                    <div
-                      className="h-full rounded-full bg-brand transition-[width] duration-500"
-                      style={{
-                        width: `${Math.round((m.progress / m.target) * 100)}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
+        {/* Missões — diárias + semanais */}
+        <MissoesSecao missoes={missoes.data ?? []} />
 
         {/* Hábitos de hoje — checklist recorrente que vira XP */}
         <Habitos />

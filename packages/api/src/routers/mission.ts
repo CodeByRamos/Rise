@@ -1,13 +1,22 @@
-import { and, eq } from "drizzle-orm";
-import { users, userMissions, MISSION_TEMPLATES } from "@rise/db";
+import { and, eq, inArray } from "drizzle-orm";
+import {
+  users,
+  userMissions,
+  DAILY_TEMPLATES,
+  WEEKLY_TEMPLATES,
+  selecionarMissoes,
+} from "@rise/db";
 import { dataLocalISO } from "@rise/core";
 import { router, protectedProcedure } from "../trpc";
+import { segundaDaSemanaLocal } from "../lib/semana";
+
+const WEEKLY_IDS = new Set(WEEKLY_TEMPLATES.map((t) => t.id));
 
 export const missionRouter = router({
   /**
-   * Missões do dia (heurística L0, doc 13 §6.1). Gera as 3 diárias na primeira
-   * chamada do dia (idempotente por UNIQUE user+template+data local) e retorna
-   * o estado. Reset é implícito: novo dia local ⇒ novas linhas.
+   * Missões do dia + da semana (heurística L0). Gera 3 diárias (rotação
+   * determinística por data) e 2 semanais (por semana) na primeira chamada, de
+   * forma idempotente (UNIQUE user+template+data). Reset implícito pela data.
    */
   today: protectedProcedure.query(async ({ ctx }) => {
     const userId = ctx.userId;
@@ -17,16 +26,24 @@ export const missionRouter = router({
       .from(users)
       .where(eq(users.id, userId))
       .limit(1);
-    // Bootstrap ainda não rodou ⇒ sem linhas para criar (FK users).
     if (!u[0]) return [];
     const hoje = dataLocalISO(new Date(), u[0].timezone);
+    const semana = segundaDaSemanaLocal(hoje);
 
-    // Insert em lote (idempotente pelo UNIQUE user+template+data): um round-trip
-    // em vez de um por template, em toda carga da Home.
+    const diarias = selecionarMissoes(DAILY_TEMPLATES, hoje, 3).map((t) => ({
+      t,
+      data: hoje,
+    }));
+    const semanais = selecionarMissoes(WEEKLY_TEMPLATES, semana, 2).map((t) => ({
+      t,
+      data: semana,
+    }));
+
+    // Insert em lote idempotente.
     await ctx.db
       .insert(userMissions)
       .values(
-        MISSION_TEMPLATES.map((t) => ({
+        [...diarias, ...semanais].map(({ t, data }) => ({
           userId,
           templateId: t.id,
           title: t.title,
@@ -34,29 +51,44 @@ export const missionRouter = router({
           target: t.target,
           xpReward: t.xpReward,
           sparksReward: t.sparksReward,
-          assignedDate: hoje,
+          assignedDate: data,
         })),
       )
       .onConflictDoNothing();
 
+    // Busca as vigentes (dia + semana).
+    const datas = hoje === semana ? [hoje] : [hoje, semana];
     const rows = await ctx.db
       .select()
       .from(userMissions)
       .where(
-        and(eq(userMissions.userId, userId), eq(userMissions.assignedDate, hoje)),
+        and(
+          eq(userMissions.userId, userId),
+          inArray(userMissions.assignedDate, datas),
+        ),
       );
 
-    const ordem = MISSION_TEMPLATES.map((t) => t.id);
+    const ordemDia = DAILY_TEMPLATES.map((t) => t.id);
     return rows
-      .sort((a, b) => ordem.indexOf(a.templateId) - ordem.indexOf(b.templateId))
       .map((m) => ({
         id: m.id,
         titulo: m.title,
+        scope: WEEKLY_IDS.has(m.templateId)
+          ? ("weekly" as const)
+          : ("daily" as const),
         progress: Math.min(m.progress, m.target),
         target: m.target,
         xpReward: m.xpReward,
         sparksReward: m.sparksReward,
         completa: m.status === "completed",
-      }));
+      }))
+      .sort((a, b) => {
+        // Diárias primeiro, depois semanais; dentro de cada, pela ordem do pool.
+        if (a.scope !== b.scope) return a.scope === "daily" ? -1 : 1;
+        return (
+          ordemDia.indexOf(a.id) - ordemDia.indexOf(b.id) ||
+          a.target - b.target
+        );
+      });
   }),
 });

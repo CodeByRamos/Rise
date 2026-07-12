@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, isNull, inArray, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import {
   users,
@@ -16,6 +16,7 @@ import {
   feedItems,
   outbox,
   LIFE_AREA_CATALOG,
+  WEEKLY_TEMPLATES,
 } from "@rise/db";
 import {
   calcularNivelRise,
@@ -29,6 +30,48 @@ import {
 } from "@rise/core";
 import { router, protectedProcedure } from "../trpc";
 import { computarConcessao } from "../services/xp-grant";
+import { segundaDaSemanaLocal } from "../lib/semana";
+
+const WEEKLY_MISSION_IDS = new Set(WEEKLY_TEMPLATES.map((t) => t.id));
+
+/**
+ * Avalia quanto ESTA ação avança uma missão pendente, conforme a métrica.
+ * `delta` = incremento aditivo; `absoluto` = novo valor absoluto (métricas de
+ * estado, ex.: sequência). Retorna null quando a ação não afeta a missão.
+ */
+function avaliarMissao(
+  m: { metric: string; payload: unknown; progress: number },
+  c: {
+    kind: string;
+    areaId: string;
+    areaCatalogId: string | null;
+    noteLen: number;
+    focusMin: number;
+    streakGeral: number;
+  },
+): { delta: number; absoluto?: number; novasAreas?: string[] } | null {
+  const metric = m.metric;
+  if (metric === "acoes") return { delta: 1 };
+  if (metric === "areas_distintas") {
+    const vistas = (m.payload as { areas?: string[] })?.areas ?? [];
+    if (vistas.includes(c.areaId)) return null;
+    return { delta: 1, novasAreas: [...vistas, c.areaId] };
+  }
+  if (metric === "nota_longa") return c.noteLen >= 50 ? { delta: 1 } : null;
+  if (metric === "foco_sessoes")
+    return c.kind === "focus_session" ? { delta: 1 } : null;
+  if (metric === "foco_min")
+    return c.kind === "focus_session" && c.focusMin > 0
+      ? { delta: c.focusMin }
+      : null;
+  if (metric === "habitos")
+    return c.kind === "habit_check" ? { delta: 1 } : null;
+  if (metric === "sequencia")
+    return c.streakGeral > m.progress ? { delta: 0, absoluto: c.streakGeral } : null;
+  if (metric.startsWith("area:"))
+    return c.areaCatalogId === metric.slice(5) ? { delta: 1 } : null;
+  return null;
+}
 
 // XP-base por área a partir do catálogo canônico (fallback seguro p/ áreas custom).
 const BASE_POR_CATALOGO = new Map(
@@ -269,28 +312,39 @@ export const actionRouter = router({
       const streakGeral = await aplicarStreak(null);
 
       // 3b. Missões do dia pendentes — quais esta ação avança? (doc 13 §6.1)
+      // Missões vigentes: diárias (hoje) + semanais (segunda desta semana).
+      const semanaLocal = segundaDaSemanaLocal(hojeLocal);
+      const datasMissao =
+        hojeLocal === semanaLocal ? [hojeLocal] : [hojeLocal, semanaLocal];
       const missoesPendentes = await tx
         .select()
         .from(userMissions)
         .where(
           and(
             eq(userMissions.userId, userId),
-            eq(userMissions.assignedDate, hojeLocal),
+            inArray(userMissions.assignedDate, datasMissao),
             eq(userMissions.status, "pending"),
           ),
         );
-      const avancam = missoesPendentes.filter((m) => {
-        if (m.metric === "acoes") return true;
-        if (m.metric === "areas_distintas") {
-          const vistas = (m.payload as { areas?: string[] }).areas ?? [];
-          return !vistas.includes(area.id);
-        }
-        if (m.metric === "nota_longa") {
-          return (input.note?.length ?? 0) >= 50;
-        }
-        return false;
-      });
-      // Bônus pontual aplica a UMA missão só (anti-empilhamento).
+      const ctxMissao = {
+        kind: input.kind,
+        areaId: area.id,
+        areaCatalogId: area.catalogId,
+        noteLen: input.note?.length ?? 0,
+        focusMin:
+          input.kind === "focus_session"
+            ? Number((input.payload as { focusMinutes?: number })?.focusMinutes ?? 0)
+            : 0,
+        streakGeral: streakGeral.currentCount,
+      };
+      // Cada missão avaliada pela sua métrica → (delta | absoluto).
+      const avancam = missoesPendentes
+        .map((m) => ({ m, av: avaliarMissao(m, ctxMissao) }))
+        .filter(
+          (x): x is { m: (typeof missoesPendentes)[number]; av: NonNullable<ReturnType<typeof avaliarMissao>> } =>
+            x.av !== null,
+        );
+      // Bônus pontual só quando alguma missão realmente avança (anti-empilhamento).
       const multMissao = avancam.length > 0 ? 1.5 : 1.0;
 
       // 4. Domínio decide o XP — com o streak da área JÁ estendido por hoje
@@ -346,27 +400,30 @@ export const actionRouter = router({
       }[] = [];
       let xpBonusMissoes = 0;
       let sparksGanhas = 0;
-      for (const m of avancam) {
-        const novoPayload =
-          m.metric === "areas_distintas"
-            ? {
-                ...(m.payload as Record<string, unknown>),
-                areas: [
-                  ...((m.payload as { areas?: string[] }).areas ?? []),
-                  area.id,
-                ],
-              }
-            : (m.payload as Record<string, unknown>);
-        // Incremento ATÔMICO (progress = progress + 1) com guard de status:
-        // duas ações concorrentes nunca perdem incremento nem completam a
-        // mesma missão duas vezes (a 2ª vê status != 'pending' → 0 linhas).
+      const completadasIds = new Set<string>();
+      for (const { m, av } of avancam) {
+        const novoPayload = av.novasAreas
+          ? { ...(m.payload as Record<string, unknown>), areas: av.novasAreas }
+          : (m.payload as Record<string, unknown>);
+
+        // Métrica de estado (sequência) grava valor ABSOLUTO; as demais somam
+        // `delta`. Guard de status torna a operação segura sob concorrência
+        // (a 2ª ação vê status != 'pending' → 0 linhas, nunca duplica reward).
+        const novoProgresso =
+          av.absoluto !== undefined
+            ? sql`greatest(${userMissions.progress}, least(${av.absoluto}, ${userMissions.target}))`
+            : sql`${userMissions.progress} + ${av.delta}`;
+        const atinge =
+          av.absoluto !== undefined
+            ? sql`${av.absoluto} >= ${userMissions.target}`
+            : sql`${userMissions.progress} + ${av.delta} >= ${userMissions.target}`;
         const upd = await tx
           .update(userMissions)
           .set({
-            progress: sql`${userMissions.progress} + 1`,
+            progress: novoProgresso,
             payload: novoPayload,
-            status: sql`case when ${userMissions.progress} + 1 >= ${userMissions.target} then 'completed'::mission_status else ${userMissions.status} end`,
-            completedAt: sql`case when ${userMissions.progress} + 1 >= ${userMissions.target} then now() else ${userMissions.completedAt} end`,
+            status: sql`case when ${atinge} then 'completed'::mission_status else ${userMissions.status} end`,
+            completedAt: sql`case when ${atinge} then now() else ${userMissions.completedAt} end`,
           })
           .where(
             and(eq(userMissions.id, m.id), eq(userMissions.status, "pending")),
@@ -375,6 +432,7 @@ export const actionRouter = router({
         const completou = upd[0]?.status === "completed";
 
         if (completou) {
+          completadasIds.add(m.id);
           missoesCompletadas.push({
             titulo: m.title,
             xpReward: m.xpReward,
@@ -405,12 +463,19 @@ export const actionRouter = router({
         }
       }
 
-      // 6b². Fechou TODAS as missões do dia → ganha 1 Streak Freeze (cap 2).
+      // 6b². Fechou TODAS as missões DIÁRIAS ainda pendentes → ganha 1 Streak
+      // Freeze (cap 2). Semanais não contam (raramente fecham no mesmo dia).
       // "Ganho jogando" (doc 13 §5.3) — protege 1 dia perdido no futuro.
       let freezeGanho = false;
+      const diariasPendentes = missoesPendentes.filter(
+        (m) => !WEEKLY_MISSION_IDS.has(m.templateId),
+      );
+      const diariasFechadasAgora = diariasPendentes.filter((m) =>
+        completadasIds.has(m.id),
+      ).length;
       if (
-        missoesCompletadas.length > 0 &&
-        missoesPendentes.length - missoesCompletadas.length === 0
+        diariasPendentes.length > 0 &&
+        diariasFechadasAgora === diariasPendentes.length
       ) {
         const geral = await tx
           .select({ id: streaks.id, freezes: streaks.freezesAvailable })
