@@ -12,14 +12,23 @@ const nf = new Intl.NumberFormat("pt-BR");
  * magnitude e direção; o heatmap, frequência. Tendência de queda em tom neutro
  * (filosofia Rise: acompanhar, nunca culpar).
  */
+function horasFoco(min: number): string {
+  if (min < 60) return `${min}min`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m > 0 ? `${h}h${String(m).padStart(2, "0")}` : `${h}h`;
+}
+
 export function ResumoSemana() {
   const r = trpc.progress.resumoSemana.useQuery();
+  const foco = trpc.action.focoResumo.useQuery();
   if (!r.data) {
     return (
       <div className="mt-10 h-40 animate-pulse rounded-[24px] bg-surface-2" />
     );
   }
   const { xp7, tendencia, acoes7, topArea } = r.data;
+  const focoMin = foco.data?.minutosSemana ?? 0;
   const subiu = tendencia !== null && tendencia >= 0;
 
   return (
@@ -56,6 +65,12 @@ export function ResumoSemana() {
           <span className="tnum font-medium text-snow">{nf.format(acoes7)}</span>{" "}
           {acoes7 === 1 ? "ação" : "ações"}
         </span>
+        {focoMin > 0 && (
+          <span className="text-muted">
+            <span className="tnum font-medium text-snow">{horasFoco(focoMin)}</span>{" "}
+            de foco
+          </span>
+        )}
         {topArea && (
           <span className="inline-flex items-center gap-2 text-muted">
             <span className="text-faint">em ascensão</span>
