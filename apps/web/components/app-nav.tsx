@@ -19,6 +19,7 @@ const PRIMARIOS = [
 const SECUNDARIOS: { href: string; rotulo: string; destaque?: boolean }[] = [
   { href: "/ligas", rotulo: "Ligas" },
   { href: "/guerra-de-classes", rotulo: "Classes" },
+  { href: "/estatisticas", rotulo: "Estatísticas" },
   { href: "/historico", rotulo: "Histórico" },
   { href: "/descobrir", rotulo: "Descobrir" },
   { href: "/loja", rotulo: "Loja" },

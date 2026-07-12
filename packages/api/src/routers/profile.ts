@@ -109,6 +109,7 @@ export const profileRouter = router({
         "settings", "oficial", "suporte_rise", "redefinir", "notificacoes",
         "descobrir", "ligas", "rise-plus", "rise_plus", "planos", "assinar",
         "coach", "metas", "foco", "planejamento", "calendario", "historico",
+        "estatisticas", "stats",
       ]);
       if (RESERVADOS.has(input.handle)) {
         throw new TRPCError({
