@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import {
   users,
@@ -7,8 +7,9 @@ import {
   inventory,
   cosmeticItems,
   userAchievements,
+  userSettings,
 } from "@rise/db";
-import { ACHIEVEMENT_CATALOG, CLASS_IDS } from "@rise/core";
+import { ACHIEVEMENT_CATALOG, CLASS_IDS, cosmeticoPorId } from "@rise/core";
 import { router, protectedProcedure } from "../trpc";
 
 export const profileRouter = router({
@@ -34,18 +35,38 @@ export const profileRouter = router({
       throw new TRPCError({ code: "NOT_FOUND", message: "Perfil não encontrado." });
     }
 
-    const owned = await ctx.db
-      .select({
-        id: cosmeticItems.id,
-        name: cosmeticItems.name,
-        kind: cosmeticItems.kind,
-        preview: cosmeticItems.preview,
-      })
-      .from(inventory)
-      .innerJoin(cosmeticItems, eq(cosmeticItems.id, inventory.itemId))
-      .where(eq(inventory.userId, userId));
+    const [owned, settings] = await Promise.all([
+      ctx.db
+        .select({
+          id: cosmeticItems.id,
+          name: cosmeticItems.name,
+          kind: cosmeticItems.kind,
+          preview: cosmeticItems.preview,
+        })
+        .from(inventory)
+        .innerJoin(cosmeticItems, eq(cosmeticItems.id, inventory.itemId))
+        .where(eq(inventory.userId, userId)),
+      ctx.db
+        .select({ prefs: userSettings.prefs })
+        .from(userSettings)
+        .where(eq(userSettings.userId, userId))
+        .limit(1),
+    ]);
+    const prefs = (settings[0]?.prefs ?? {}) as {
+      equippedTitle?: string | null;
+      equippedProfileBg?: string | null;
+      equippedBadge?: string | null;
+      favoritos?: string[];
+    };
 
-    return { ...p, owned };
+    return {
+      ...p,
+      owned,
+      equippedTitleId: prefs.equippedTitle ?? null,
+      equippedProfileBgId: prefs.equippedProfileBg ?? null,
+      equippedBadgeSlug: prefs.equippedBadge ?? null,
+      favoritos: Array.isArray(prefs.favoritos) ? prefs.favoritos : [],
+    };
   }),
 
   /** Catálogo completo de conquistas com estado (critérios sempre visíveis). */
@@ -193,35 +214,62 @@ export const profileRouter = router({
   equip: protectedProcedure
     .input(
       z.object({
-        kind: z.enum(["frame", "theme"]),
+        kind: z.enum(["frame", "theme", "profileBg", "title", "badge"]),
         itemId: z.string().nullable(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // Validação de posse + categoria pelo catálogo (fonte da verdade).
       if (input.itemId) {
+        const def = cosmeticoPorId(input.itemId);
+        if (!def || def.category !== input.kind) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Item inválido para este slot." });
+        }
         const owned = await ctx.db
-          .select({ itemId: inventory.itemId, kind: cosmeticItems.kind })
+          .select({ itemId: inventory.itemId })
           .from(inventory)
-          .innerJoin(cosmeticItems, eq(cosmeticItems.id, inventory.itemId))
           .where(
             and(eq(inventory.userId, ctx.userId), eq(inventory.itemId, input.itemId)),
           )
           .limit(1);
-        if (!owned[0] || owned[0].kind !== input.kind) {
+        if (!owned[0]) {
           throw new TRPCError({
             code: "FORBIDDEN",
             message: "Você não possui este cosmético.",
           });
         }
       }
-      await ctx.db
-        .update(profiles)
-        .set(
-          input.kind === "frame"
-            ? { equippedFrameId: input.itemId, updatedAt: new Date() }
-            : { equippedThemeId: input.itemId, updatedAt: new Date() },
-        )
-        .where(eq(profiles.userId, ctx.userId));
+
+      // frame/theme moram em profiles (públicos, hot path). title/bg/badge em
+      // userSettings.prefs (sem migração) — merge atômico via jsonb.
+      if (input.kind === "frame" || input.kind === "theme") {
+        await ctx.db
+          .update(profiles)
+          .set(
+            input.kind === "frame"
+              ? { equippedFrameId: input.itemId, updatedAt: new Date() }
+              : { equippedThemeId: input.itemId, updatedAt: new Date() },
+          )
+          .where(eq(profiles.userId, ctx.userId));
+      } else {
+        const chave =
+          input.kind === "title"
+            ? "equippedTitle"
+            : input.kind === "profileBg"
+              ? "equippedProfileBg"
+              : "equippedBadge";
+        const patch = JSON.stringify({ [chave]: input.itemId });
+        await ctx.db
+          .insert(userSettings)
+          .values({ userId: ctx.userId, prefs: { [chave]: input.itemId } })
+          .onConflictDoUpdate({
+            target: userSettings.userId,
+            set: {
+              prefs: sql`coalesce(${userSettings.prefs}, '{}'::jsonb) || ${patch}::jsonb`,
+              updatedAt: sql`now()`,
+            },
+          });
+      }
       return { ok: true as const };
     }),
 });

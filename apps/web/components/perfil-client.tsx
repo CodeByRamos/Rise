@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { CLASS_CATALOG, classePorId, tituloDaClasse } from "@rise/core";
+import { CLASS_CATALOG, classePorId, tituloDaClasse, cosmeticoPorId } from "@rise/core";
 import { trpc } from "@/lib/trpc/react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Avatar } from "./avatar";
@@ -98,10 +98,19 @@ export function PerfilClient() {
     }
   }
 
+  const bgDef = cosmeticoPorId(p.equippedProfileBgId);
+  const bgGradient = bgDef
+    ? `linear-gradient(135deg, ${((bgDef.preview as { gradient?: string[] }).gradient ?? []).join(", ")})`
+    : undefined;
+  const titleDef = cosmeticoPorId(p.equippedTitleId);
+
   return (
     <div className="space-y-8">
       {/* Identidade */}
-      <section className="rounded-[24px] border border-line bg-surface-2 p-6">
+      <section
+        className="relative overflow-hidden rounded-[24px] border border-line bg-surface-2 p-6"
+        style={bgGradient ? { background: bgGradient } : undefined}
+      >
         <div className="flex items-center gap-5">
           <Avatar
             nome={nomeAtual}
@@ -113,6 +122,14 @@ export function PerfilClient() {
             <p className="truncate font-display text-lg font-semibold text-snow">
               {nomeAtual}
             </p>
+            {titleDef && (
+              <p
+                className="font-display text-xs font-semibold"
+                style={{ color: (titleDef.preview as { cor?: string }).cor ?? "var(--color-brand)" }}
+              >
+                {titleDef.name}
+              </p>
+            )}
             {editandoHandle ? (
               <form
                 onSubmit={(e) => {

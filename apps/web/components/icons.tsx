@@ -73,6 +73,26 @@ export function ChevronUpIcon({ size = 16, className }: IconProps) {
   );
 }
 
+export function StarIcon({ size = 16, className, filled }: IconProps & { filled?: boolean }) {
+  return (
+    <svg {...base(size)} className={className}>
+      <path
+        d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9L12 3.5Z"
+        fill={filled ? "currentColor" : "none"}
+      />
+    </svg>
+  );
+}
+
+export function SearchIcon({ size = 16, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className}>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="M20 20l-3.6-3.6" />
+    </svg>
+  );
+}
+
 export function ChevronDownIcon({ size = 16, className }: IconProps) {
   return (
     <svg {...base(size)} className={className}>

@@ -15,7 +15,7 @@ import {
   cosmeticItems,
   LIFE_AREA_CATALOG,
 } from "@rise/db";
-import { progressoNoNivel, nivelDeArea, calcularNivelRise } from "@rise/core";
+import { progressoNoNivel, nivelDeArea, calcularNivelRise, cosmeticoPorId } from "@rise/core";
 import { sql as dsql, gte } from "drizzle-orm";
 import { outbox } from "@rise/db";
 import { router, protectedProcedure } from "../trpc";
@@ -329,7 +329,7 @@ export const progressRouter = router({
           .where(eq(profiles.userId, userId))
           .limit(1),
         ctx.db
-          .select({ restModeUntil: userSettings.restModeUntil })
+          .select({ restModeUntil: userSettings.restModeUntil, prefs: userSettings.prefs })
           .from(userSettings)
           .where(eq(userSettings.userId, userId))
           .limit(1),
@@ -370,10 +370,20 @@ export const progressRouter = router({
         itens.find((i) => i.id === perfil.equippedThemeId)?.preview ?? null;
     }
 
+    // Fundo de perfil + título vêm do catálogo (prefs guardam só o id).
+    const prefs = (settingsRows[0]?.prefs ?? {}) as {
+      equippedProfileBg?: string | null;
+      equippedTitle?: string | null;
+    };
+    const bgDef = cosmeticoPorId(prefs.equippedProfileBg);
+    const titleDef = cosmeticoPorId(prefs.equippedTitle);
+
     return {
       avatarUrl: perfil?.avatarUrl ?? null,
       framePreview,
       themePreview,
+      profileBgPreview: bgDef?.preview ?? null,
+      titulo: titleDef ? { texto: titleDef.name, cor: (titleDef.preview as { cor?: string }).cor ?? null } : null,
       restModeUntil,
       riseLevel: rise.nivelRise,
       totalXp: rise.xpRise,

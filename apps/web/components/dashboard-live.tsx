@@ -492,6 +492,14 @@ function DashboardInner({ displayName }: { displayName: string }) {
         </header>
 
         <section className="animate-rise-in mt-12">
+          {d.titulo && (
+            <p
+              className="font-display mb-1 text-sm font-semibold"
+              style={{ color: d.titulo.cor ?? "var(--color-brand)" }}
+            >
+              {d.titulo.texto}
+            </p>
+          )}
           <h1 className="font-display text-3xl font-semibold tracking-tight text-snow sm:text-4xl">
             Olá, {displayName}.
           </h1>
