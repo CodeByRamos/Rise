@@ -374,6 +374,7 @@ export const progressRouter = router({
     const prefs = (settingsRows[0]?.prefs ?? {}) as {
       equippedProfileBg?: string | null;
       equippedTitle?: string | null;
+      intencaoSemana?: string | null;
     };
     const bgDef = cosmeticoPorId(prefs.equippedProfileBg);
     const titleDef = cosmeticoPorId(prefs.equippedTitle);
@@ -384,6 +385,7 @@ export const progressRouter = router({
       themePreview,
       profileBgPreview: bgDef?.preview ?? null,
       titulo: titleDef ? { texto: titleDef.name, cor: (titleDef.preview as { cor?: string }).cor ?? null } : null,
+      intencaoSemana: prefs.intencaoSemana ?? null,
       restModeUntil,
       riseLevel: rise.nivelRise,
       totalXp: rise.xpRise,
@@ -484,5 +486,23 @@ export const progressRouter = router({
         )
         .orderBy(desc(actionLogs.id));
       return rows;
+    }),
+
+  /** Define a intenção/foco da semana (nota livre no planejamento). */
+  setIntencao: protectedProcedure
+    .input(z.object({ texto: z.string().trim().max(200) }))
+    .mutation(async ({ ctx, input }) => {
+      const patch = JSON.stringify({ intencaoSemana: input.texto || null });
+      await ctx.db
+        .insert(userSettings)
+        .values({ userId: ctx.userId, prefs: { intencaoSemana: input.texto || null } })
+        .onConflictDoUpdate({
+          target: userSettings.userId,
+          set: {
+            prefs: dsql`coalesce(${userSettings.prefs}, '{}'::jsonb) || ${patch}::jsonb`,
+            updatedAt: dsql`now()`,
+          },
+        });
+      return { ok: true as const };
     }),
 });

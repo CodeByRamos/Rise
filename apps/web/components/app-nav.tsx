@@ -10,13 +10,14 @@ import { BellIcon, ChevronDownIcon, CrownIcon } from "./icons";
 // navegação enxuta e premium mesmo com o produto crescendo.
 const PRIMARIOS = [
   { href: "/", rotulo: "Início" },
-  { href: "/evolucao", rotulo: "Evolução" },
+  { href: "/planejamento", rotulo: "Planejar" },
   { href: "/foco", rotulo: "Foco" },
   { href: "/coach", rotulo: "Coach" },
-  { href: "/feed", rotulo: "Feed" },
+  { href: "/evolucao", rotulo: "Evolução" },
 ] as const;
 
 const SECUNDARIOS: { href: string; rotulo: string; destaque?: boolean }[] = [
+  { href: "/feed", rotulo: "Feed" },
   { href: "/ligas", rotulo: "Ligas" },
   { href: "/guerra-de-classes", rotulo: "Classes" },
   { href: "/estatisticas", rotulo: "Estatísticas" },
