@@ -65,6 +65,14 @@
   --area-meditacao: #f0abfc;
   --area-games: #818cf8;
   --area-voluntariado: #f43f5e;
+  /* Produtividade & desenvolvimento pessoal */
+  --area-carreira: #6366f1;
+  --area-saude-mental: #2dd4bf;
+  --area-organizacao: #eab308;
+  --area-disciplina: #dc2626;
+  --area-comunicacao: #06b6d4;
+  --area-projetos: #7c3aed;
+  --area-lazer: #fda4af;
 }
 
 @layer base {

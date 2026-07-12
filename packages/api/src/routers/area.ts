@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { lifeAreas, lifeAreaCatalog } from "@rise/db";
+import { lifeAreas, lifeAreaCatalog, LIFE_AREA_CATALOG } from "@rise/db";
 import { router, protectedProcedure } from "../trpc";
 
 // Paleta restrita para Áreas personalizadas (doc 15 — picker restrito, sem cor livre).
@@ -21,9 +21,14 @@ export const areaRouter = router({
       minhas.map((m) => m.catalogId).filter((x): x is string => !!x),
     );
     const cat = await ctx.db.select().from(lifeAreaCatalog);
-    return cat
-      .filter((c) => !tenho.has(c.id))
-      .map((c) => ({ id: c.id, nome: c.namePt, cor: c.colorToken, icon: c.icon }));
+    // Une o catálogo do banco com o do código (áreas novas ainda não seedadas
+    // aparecem sem re-seed — o add cria a linha de catálogo sob demanda).
+    const dbIds = new Set(cat.map((c) => c.id));
+    const doCodigo = LIFE_AREA_CATALOG.filter((c) => !dbIds.has(c.id));
+    return [
+      ...cat.map((c) => ({ id: c.id, nome: c.namePt, cor: c.colorToken, icon: c.icon })),
+      ...doCodigo.map((c) => ({ id: c.id, nome: c.namePt, cor: c.colorToken, icon: c.icon })),
+    ].filter((c) => !tenho.has(c.id));
   }),
 
   /** Adiciona uma Área do catálogo (ou reativa se estava arquivada). */
@@ -35,8 +40,28 @@ export const areaRouter = router({
         .from(lifeAreaCatalog)
         .where(eq(lifeAreaCatalog.id, input.catalogId))
         .limit(1);
-      const c = cat[0];
-      if (!c) throw new TRPCError({ code: "NOT_FOUND", message: "Área não encontrada." });
+      let c: { id: string; namePt: string; colorToken: string; icon: string } | undefined = cat[0];
+      if (!c) {
+        // Catálogo do banco desatualizado: cria a linha a partir do código
+        // (idempotente) antes de vincular a Área — evita FK quebrada.
+        const code = LIFE_AREA_CATALOG.find((x) => x.id === input.catalogId);
+        if (!code) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Área não encontrada." });
+        }
+        await ctx.db
+          .insert(lifeAreaCatalog)
+          .values({
+            id: code.id,
+            namePt: code.namePt,
+            nameEn: code.nameEn,
+            colorToken: code.colorToken,
+            icon: code.icon,
+            baseXpTable: { quick_log: code.baseXp, habit_check: code.baseXp },
+            isDefault: true,
+          })
+          .onConflictDoNothing();
+        c = { id: code.id, namePt: code.namePt, colorToken: code.colorToken, icon: code.icon };
+      }
 
       const existente = await ctx.db
         .select({ id: lifeAreas.id, isArchived: lifeAreas.isArchived })

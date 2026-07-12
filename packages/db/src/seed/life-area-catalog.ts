@@ -54,4 +54,13 @@ export const LIFE_AREA_CATALOG: readonly LifeAreaCatalogSeed[] = [
   { id: "meditacao", namePt: "Meditação", nameEn: "Meditation", colorToken: "--area-meditacao", icon: "brain", baseXp: 12 },
   { id: "games", namePt: "Games", nameEn: "Gaming", colorToken: "--area-games", icon: "gamepad-2", baseXp: 10 },
   { id: "voluntariado", namePt: "Voluntariado", nameEn: "Volunteering", colorToken: "--area-voluntariado", icon: "heart-handshake", baseXp: 18 },
+
+  // — Produtividade & desenvolvimento pessoal —
+  { id: "carreira", namePt: "Carreira", nameEn: "Career", colorToken: "--area-carreira", icon: "trending-up", baseXp: 15 },
+  { id: "saude-mental", namePt: "Saúde Mental", nameEn: "Mental Health", colorToken: "--area-saude-mental", icon: "heart-pulse", baseXp: 12 },
+  { id: "organizacao", namePt: "Organização", nameEn: "Organization", colorToken: "--area-organizacao", icon: "check-square", baseXp: 10 },
+  { id: "disciplina", namePt: "Disciplina", nameEn: "Discipline", colorToken: "--area-disciplina", icon: "target", baseXp: 12 },
+  { id: "comunicacao", namePt: "Comunicação", nameEn: "Communication", colorToken: "--area-comunicacao", icon: "message-circle", baseXp: 12 },
+  { id: "projetos", namePt: "Projetos", nameEn: "Projects", colorToken: "--area-projetos", icon: "layers", baseXp: 18 },
+  { id: "lazer", namePt: "Lazer", nameEn: "Leisure", colorToken: "--area-lazer", icon: "coffee", baseXp: 8 },
 ];
