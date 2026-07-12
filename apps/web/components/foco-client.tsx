@@ -228,7 +228,7 @@ export function FocoClient() {
   return (
     <div>
       {/* Timer */}
-      <div className="flex flex-col items-center rounded-[28px] border border-line bg-surface-2 p-8">
+      <div className="flex flex-col items-center rounded-[28px] border border-line bg-surface-2 p-6 sm:p-8">
         <Ring fracao={fracao} cor={cor} rotulo={sessao?.fase === "break" ? "Pausa" : "Foco"}>
           <span className="font-display tnum text-[56px] font-semibold leading-none text-snow">
             {fmt(sessao ? restanteMs : preset.work * 60_000)}
@@ -418,12 +418,12 @@ function Ring({
   const center = size / 2;
   return (
     <div
-      className="relative"
-      style={{ width: size, height: size }}
+      className="relative aspect-square w-full"
+      style={{ maxWidth: size }}
       role="img"
       aria-label={`${rotulo}: ${Math.round(fracao * 100)}% concluído`}
     >
-      <svg width={size} height={size} className="-rotate-90">
+      <svg viewBox={`0 0 ${size} ${size}`} className="h-full w-full -rotate-90">
         <circle cx={center} cy={center} r={r} fill="none" stroke="var(--color-graphite)" strokeWidth={stroke} />
         <circle
           cx={center}
