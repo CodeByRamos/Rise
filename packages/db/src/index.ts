@@ -17,6 +17,7 @@ export {
   DAILY_TEMPLATES,
   WEEKLY_TEMPLATES,
   selecionarMissoes,
+  ehMissaoSemanal,
 } from "./seed/mission-templates";
 export type { MissionTemplate, MissionScope } from "./seed/mission-templates";
 export { COSMETIC_CATALOG } from "./seed/cosmetics";

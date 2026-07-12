@@ -16,7 +16,7 @@ import {
   feedItems,
   outbox,
   LIFE_AREA_CATALOG,
-  WEEKLY_TEMPLATES,
+  ehMissaoSemanal,
 } from "@rise/db";
 import {
   calcularNivelRise,
@@ -31,8 +31,6 @@ import {
 import { router, protectedProcedure } from "../trpc";
 import { computarConcessao } from "../services/xp-grant";
 import { segundaDaSemanaLocal } from "../lib/semana";
-
-const WEEKLY_MISSION_IDS = new Set(WEEKLY_TEMPLATES.map((t) => t.id));
 
 /**
  * Avalia quanto ESTA ação avança uma missão pendente, conforme a métrica.
@@ -468,7 +466,7 @@ export const actionRouter = router({
       // "Ganho jogando" (doc 13 §5.3) — protege 1 dia perdido no futuro.
       let freezeGanho = false;
       const diariasPendentes = missoesPendentes.filter(
-        (m) => !WEEKLY_MISSION_IDS.has(m.templateId),
+        (m) => !ehMissaoSemanal(m.templateId),
       );
       const diariasFechadasAgora = diariasPendentes.filter((m) =>
         completadasIds.has(m.id),

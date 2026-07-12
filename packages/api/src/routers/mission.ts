@@ -1,16 +1,17 @@
 import { and, eq, inArray } from "drizzle-orm";
 import {
   users,
+  profiles,
+  lifeAreas,
   userMissions,
   DAILY_TEMPLATES,
   WEEKLY_TEMPLATES,
   selecionarMissoes,
+  ehMissaoSemanal,
 } from "@rise/db";
-import { dataLocalISO } from "@rise/core";
+import { dataLocalISO, classePorId } from "@rise/core";
 import { router, protectedProcedure } from "../trpc";
 import { segundaDaSemanaLocal } from "../lib/semana";
-
-const WEEKLY_IDS = new Set(WEEKLY_TEMPLATES.map((t) => t.id));
 
 export const missionRouter = router({
   /**
@@ -38,6 +39,43 @@ export const missionRouter = router({
       t,
       data: semana,
     }));
+
+    // Missão de Classe: se o usuário declarou uma Classe e tem a Área afim,
+    // uma semanal temática (ex.: 5 ações na Área da Classe). Liga Classe ↔
+    // Missão ↔ Área sem conceder vantagem (mesma recompensa das outras).
+    const perfil = await ctx.db
+      .select({ classId: profiles.mainClassId })
+      .from(profiles)
+      .where(eq(profiles.userId, userId))
+      .limit(1);
+    const classe = classePorId(perfil[0]?.classId);
+    if (classe) {
+      const temArea = await ctx.db
+        .select({ id: lifeAreas.id })
+        .from(lifeAreas)
+        .where(
+          and(
+            eq(lifeAreas.userId, userId),
+            eq(lifeAreas.catalogId, classe.areaAfim),
+            eq(lifeAreas.isArchived, false),
+          ),
+        )
+        .limit(1);
+      if (temArea[0]) {
+        semanais.push({
+          t: {
+            id: `classe-${classe.areaAfim}`,
+            title: `Caminho do ${classe.nome}: 5 ações em ${classe.nome}`,
+            scope: "weekly",
+            metric: `area:${classe.areaAfim}`,
+            target: 5,
+            xpReward: 90,
+            sparksReward: 14,
+          },
+          data: semana,
+        });
+      }
+    }
 
     // Insert em lote idempotente.
     await ctx.db
@@ -73,7 +111,7 @@ export const missionRouter = router({
       .map((m) => ({
         id: m.id,
         titulo: m.title,
-        scope: WEEKLY_IDS.has(m.templateId)
+        scope: ehMissaoSemanal(m.templateId)
           ? ("weekly" as const)
           : ("daily" as const),
         progress: Math.min(m.progress, m.target),

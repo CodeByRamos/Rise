@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { CLASS_CATALOG, classePorId } from "@rise/core";
+import { CLASS_CATALOG, classePorId, tituloDaClasse } from "@rise/core";
 import { trpc } from "@/lib/trpc/react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Avatar } from "./avatar";
@@ -358,7 +358,12 @@ function ClassePrincipal({ atual }: { atual: string | null }) {
     },
     onError: (e) => setErro(e.message),
   });
+  const me = trpc.progress.me.useQuery();
   const escolhida = classePorId(atual);
+  const nivelAfim = escolhida
+    ? (me.data?.areas.find((a) => a.catalogId === escolhida.areaAfim)?.nivel ?? 0)
+    : 0;
+  const titulo = escolhida ? tituloDaClasse(escolhida, nivelAfim) : null;
 
   return (
     <section>
@@ -377,22 +382,39 @@ function ClassePrincipal({ atual }: { atual: string | null }) {
         )}
       </div>
 
-      <p className="mt-2 max-w-prose text-sm text-muted">
-        {escolhida ? (
-          <>
-            Você é{" "}
-            <span
-              className="font-semibold"
+      {escolhida ? (
+        <div
+          className="mt-3 rounded-[20px] border p-5"
+          style={{
+            borderColor: `color-mix(in srgb, ${cssColor(escolhida.colorToken)} 35%, transparent)`,
+            background: `color-mix(in srgb, ${cssColor(escolhida.colorToken)} 7%, transparent)`,
+          }}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <p
+              className="font-display text-lg font-semibold"
               style={{ color: cssColor(escolhida.colorToken) }}
             >
               {escolhida.nome}
-            </span>{" "}
-            — {escolhida.descricao}
-          </>
-        ) : (
-          "Declare quem você é. Identidade, não vantagem — a Classe nunca concede XP."
-        )}
-      </p>
+            </p>
+            <span
+              className="rounded-[var(--radius-pill)] px-3 py-1 text-xs font-semibold text-void"
+              style={{ background: cssColor(escolhida.colorToken) }}
+            >
+              {titulo}
+            </span>
+          </div>
+          <p className="mt-1.5 text-sm italic text-muted">“{escolhida.lema}”</p>
+          <p className="mt-2 text-xs leading-relaxed text-faint">
+            Título evolui com seu progresso na Área afim (nível {nivelAfim}).
+            Identidade, não vantagem — a Classe nunca concede XP.
+          </p>
+        </div>
+      ) : (
+        <p className="mt-2 max-w-prose text-sm text-muted">
+          Declare quem você é. Identidade, não vantagem — a Classe nunca concede XP.
+        </p>
+      )}
 
       <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
         {CLASS_CATALOG.map((c) => {

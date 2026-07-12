@@ -64,6 +64,14 @@ function hash(s: string): number {
   return h >>> 0;
 }
 
+/**
+ * É missão semanal? Cobre o pool fixo ("semana-*") e as de Classe ("classe-*"),
+ * geradas dinamicamente para quem declarou uma Classe principal.
+ */
+export function ehMissaoSemanal(templateId: string): boolean {
+  return templateId.startsWith("semana-") || templateId.startsWith("classe-");
+}
+
 /** Sorteia `n` templates do pool de forma estável para um dado seed (data/semana). */
 export function selecionarMissoes(
   pool: readonly MissionTemplate[],
