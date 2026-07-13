@@ -65,6 +65,49 @@ Cada item segue o formato: **o que**, **onde**, **o que obter**, **onde inserir*
 
 ---
 
+## 2c. REPARO — colunas/tabelas que faltam no banco (Perfil e Classes com erro)
+
+> **Diagnóstico confirmado:** o banco não tem `profiles.main_class_id` /
+> `main_class_since` (migrações 0009/0010 nunca aplicadas). Isso quebra as páginas
+> **Perfil**, **Guerra de Classes** e a geração de missões (erro 500). As tabelas
+> `season_claims`/`push_subscriptions` também podem estar faltando.
+
+- **O que preciso configurar:** rodar o SQL idempotente abaixo (seguro — só
+  adiciona o que falta, não apaga nada).
+- **Onde:** Supabase → SQL Editor.
+- **Cole e execute:**
+  ```sql
+  alter table profiles add column if not exists main_class_id text;
+  alter table profiles add column if not exists main_class_since timestamptz;
+
+  create table if not exists season_claims (
+    user_id uuid not null references users(id),
+    season_key text not null,
+    milestone_xp integer not null,
+    claimed_at timestamptz not null default now(),
+    primary key (user_id, season_key, milestone_xp)
+  );
+
+  create table if not exists push_subscriptions (
+    id uuid primary key default gen_random_uuid(),
+    user_id uuid not null references users(id),
+    endpoint text not null unique,
+    p256dh text not null,
+    auth text not null,
+    created_at timestamptz not null default now()
+  );
+  create index if not exists push_subscriptions_user_idx on push_subscriptions (user_id);
+  ```
+- **Como verificar:** abra **Perfil** e **Classes** — devem carregar sem erro.
+  Ou rode:
+  ```sql
+  select column_name from information_schema.columns
+  where table_name = 'profiles' and column_name like 'main_class%';
+  ```
+  Deve retornar 2 linhas.
+
+---
+
 ## 3. Coach de IA — chave da Anthropic (`ANTHROPIC_API_KEY`)
 
 > Já usada pelo Coach diário; a Análise Profunda semanal usa o modelo Opus.
