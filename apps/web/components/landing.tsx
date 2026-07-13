@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { RiseMark, RiseWordmark } from "./rise-mark";
-import { LevelRing } from "./level-ring";
 import { cssColor } from "./area-card";
 import { CheckIcon, ChevronUpIcon, SparkIcon, CameraIcon } from "./icons";
 
@@ -209,68 +208,138 @@ function HeroDemo() {
   const [i, setI] = useState(0);
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const id = window.setInterval(() => setI((v) => (v + 1) % DEMO.length), 2400);
+    const id = window.setInterval(() => setI((v) => (v + 1) % DEMO.length), 2600);
     return () => window.clearInterval(id);
   }, []);
   const d = DEMO[i]!;
   const cor = cssColor(d.cor);
 
   return (
-    <div className="relative mx-auto w-full max-w-sm">
+    <div className="relative mx-auto w-full max-w-[400px]">
       {/* halo */}
       <div
         aria-hidden
-        className="absolute inset-0 -z-10 rounded-[32px] opacity-60 blur-2xl"
-        style={{ background: `radial-gradient(60% 60% at 50% 20%, ${cor}22, transparent 70%)` }}
+        className="absolute inset-0 -z-10 rounded-[36px] opacity-60 blur-2xl transition-colors duration-700"
+        style={{ background: `radial-gradient(60% 55% at 50% 18%, ${cor}26, transparent 70%)` }}
       />
-      <div className="rounded-[28px] border border-line bg-surface-2/80 p-6 backdrop-blur-xl">
+      <div className="overflow-hidden rounded-[28px] border border-line bg-surface-2/80 p-5 backdrop-blur-xl sm:p-6">
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-faint">
             Sua evolução
           </span>
-          <span className="inline-flex items-center gap-1 text-xs font-semibold text-brand">
-            <SparkIcon size={12} /> ao vivo
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/30 bg-brand/10 px-2.5 py-1 text-[11px] font-semibold text-brand">
+            <span className="relative flex size-1.5">
+              <span className="animate-ping-soft absolute inline-flex size-full rounded-full bg-brand" />
+              <span className="relative inline-flex size-1.5 rounded-full bg-brand" />
+            </span>
+            ao vivo
           </span>
         </div>
 
-        <div className="mt-4 flex justify-center">
-          <div className="relative">
-            <LevelRing nivel={13} fracao={0.72} size={168} />
+        <div className="mt-5 flex justify-center">
+          <AnimatedRing nivel={13} fracao={0.72} />
+        </div>
+
+        {/* ação registrada (troca sozinha, contida no card) */}
+        <div
+          key={i}
+          className="animate-pop-in relative mt-6 overflow-hidden rounded-2xl border bg-surface p-4"
+          style={{ borderColor: `color-mix(in srgb, ${cor} 30%, transparent)` }}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: cor }} />
+              <span className="truncate text-sm font-semibold text-snow">{d.area}</span>
+            </span>
             <span
-              aria-hidden
-              className="animate-ping-soft absolute inset-0 rounded-full border"
-              style={{ borderColor: `${cssColor("--color-brand")}55` }}
-            />
-          </div>
-        </div>
-
-        {/* ação registrada (troca sozinha) */}
-        <div key={i} className="animate-pop-in relative mt-5 rounded-2xl border border-line bg-surface p-4">
-          <span
-            aria-hidden
-            className="animate-float-up absolute -top-1 right-4 font-display tnum text-xl font-semibold"
-            style={{ color: cor, textShadow: `0 0 12px ${cor}88` }}
-          >
-            +{d.xp} XP
-          </span>
-          <div className="flex items-center gap-2 text-sm">
-            <span className="size-2.5 rounded-full" style={{ backgroundColor: cor }} />
-            <span className="font-semibold text-snow">{d.area}</span>
-            <span className="ml-auto inline-flex items-center gap-1 text-xs text-faint">
-              <CameraIcon size={12} /> prova
+              className="font-display tnum shrink-0 text-lg font-semibold leading-none"
+              style={{ color: cor, textShadow: `0 0 14px ${cor}66` }}
+            >
+              +{d.xp} XP
             </span>
           </div>
-          <p className="mt-1.5 text-xs leading-relaxed text-muted">“{d.nota}”</p>
+          <p className="mt-2 truncate text-xs leading-relaxed text-muted">“{d.nota}”</p>
           <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-graphite">
             <div className="animate-xp h-full rounded-full" style={{ background: cor }} />
+          </div>
+          <div className="mt-2.5 inline-flex items-center gap-1.5 text-[11px] font-medium text-faint">
+            <CameraIcon size={12} /> prova anexada
           </div>
         </div>
 
         <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-          <MiniStat valor="Nível 13" rotulo="Rise" />
-          <MiniStat valor="27 dias" rotulo="sequência" destaque />
+          <MiniStat valor="13" rotulo="Nível Rise" />
+          <MiniStat valor="27" rotulo="dias seguidos" destaque />
           <MiniStat valor="1.48×" rotulo="bônus" />
         </div>
+      </div>
+    </div>
+  );
+}
+
+/** Anel do nível: arco enche na montagem, número conta até 13, glow giratório. */
+function AnimatedRing({ nivel, fracao }: { nivel: number; fracao: number }) {
+  const size = 172;
+  const stroke = 13;
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const target = Math.max(0, Math.min(fracao, 1)) * circ;
+  const c = size / 2;
+  const [dash, setDash] = useState(0);
+  const [n, setN] = useState(0);
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setDash(target);
+      setN(nivel);
+      return;
+    }
+    const t = window.setTimeout(() => setDash(target), 140);
+    let cur = 0;
+    const step = window.setInterval(() => {
+      cur += 1;
+      setN(cur);
+      if (cur >= nivel) window.clearInterval(step);
+    }, 55);
+    return () => {
+      window.clearTimeout(t);
+      window.clearInterval(step);
+    };
+  }, [target, nivel]);
+
+  return (
+    <div
+      className="relative w-[172px] max-w-[62vw]"
+      style={{ aspectRatio: "1 / 1" }}
+      role="img"
+      aria-label={`Nível Rise ${nivel}, ${Math.round(fracao * 100)}% para o próximo`}
+    >
+      <div
+        aria-hidden
+        className="ring-glow absolute inset-3 rounded-full opacity-60 blur-md"
+        style={{ background: "conic-gradient(from 0deg, transparent, var(--color-brand) 55%, transparent)" }}
+      />
+      <svg viewBox={`0 0 ${size} ${size}`} className="relative h-full w-full -rotate-90">
+        <circle cx={c} cy={c} r={r} fill="none" stroke="var(--color-graphite)" strokeWidth={stroke} />
+        <circle
+          cx={c}
+          cy={c}
+          r={r}
+          fill="none"
+          stroke="var(--color-brand)"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={`${dash} ${circ}`}
+          style={{
+            filter: "drop-shadow(0 0 10px rgba(16,185,129,0.5))",
+            transition: "stroke-dasharray 1.1s cubic-bezier(0.22,1,0.36,1)",
+          }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-faint">Nível Rise</span>
+        <span className="font-display tnum text-[3.4rem] font-semibold leading-none text-snow">{n}</span>
+        <span className="tnum mt-1 text-sm font-medium text-brand">{Math.round(fracao * 100)}%</span>
       </div>
     </div>
   );
@@ -279,10 +348,10 @@ function HeroDemo() {
 function MiniStat({ valor, rotulo, destaque = false }: { valor: string; rotulo: string; destaque?: boolean }) {
   return (
     <div className="rounded-xl border border-line bg-surface px-2 py-2.5">
-      <div className={`font-display tnum text-sm font-semibold leading-none ${destaque ? "text-brand" : "text-snow"}`}>
+      <div className={`font-display tnum text-lg font-semibold leading-none ${destaque ? "text-brand" : "text-snow"}`}>
         {valor}
       </div>
-      <div className="mt-1 text-[10px] uppercase tracking-wider text-faint">{rotulo}</div>
+      <div className="mt-1 text-[10px] uppercase leading-tight tracking-wider text-faint">{rotulo}</div>
     </div>
   );
 }
@@ -291,7 +360,7 @@ function MiniStat({ valor, rotulo, destaque = false }: { valor: string; rotulo: 
 
 function Loop() {
   return (
-    <section className="relative mx-auto max-w-6xl px-5 py-28">
+    <section className="relative mx-auto max-w-6xl px-5 py-20 sm:py-28">
       <div className="reveal">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand">O loop</p>
         <h2 className="font-display mt-3 max-w-2xl text-3xl font-semibold leading-tight tracking-tight text-snow sm:text-5xl">
@@ -357,7 +426,7 @@ function AreasMarquee() {
 
 function Bento() {
   return (
-    <section className="relative mx-auto max-w-6xl px-5 py-28">
+    <section className="relative mx-auto max-w-6xl px-5 py-20 sm:py-28">
       <div className="reveal max-w-2xl">
         <h2 className="font-display text-3xl font-semibold leading-tight tracking-tight text-snow sm:text-5xl">
           Feito para quem leva a evolução a sério.
@@ -441,7 +510,7 @@ function Bento() {
 
 function Principios() {
   return (
-    <section className="relative overflow-hidden px-5 py-28">
+    <section className="relative overflow-hidden px-5 py-20 sm:py-28">
       <div
         aria-hidden
         className="aurora-b pointer-events-none absolute inset-0 -z-10 opacity-30"
@@ -474,7 +543,7 @@ function Principios() {
 
 function FinalCta() {
   return (
-    <section className="relative overflow-hidden px-5 py-32 text-center">
+    <section className="relative overflow-hidden px-5 py-24 text-center sm:py-32">
       <Aurora />
       <div className="reveal relative mx-auto flex max-w-2xl flex-col items-center gap-7">
         <RiseMark size={52} />

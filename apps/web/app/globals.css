@@ -251,6 +251,10 @@
 }
 .animate-sweep { animation: sweep 3.4s ease-in-out infinite; }
 
+/* Glow giratório atrás do anel do nível. */
+@keyframes spin-slow { to { transform: rotate(360deg); } }
+.ring-glow { animation: spin-slow 9s linear infinite; will-change: transform; }
+
 /* Barra de progresso de scroll (scroll-driven; degrada p/ invisível). */
 @keyframes grow-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 .scroll-progress {
@@ -268,6 +272,7 @@
   .animate-ping-soft,
   .animate-sweep,
   .word-rise > span,
+  .ring-glow,
   .scroll-progress {
     animation: none !important;
   }
