@@ -51,10 +51,11 @@ export async function analisarProfundo(
     .filter(Boolean)
     .join("\n\n");
 
+  // Sem `temperature` (Opus 4.8 rejeita com 400 — era o motivo de a Análise
+  // Profunda falhar sempre e cair no erro genérico).
   const msg = await p.client.messages.create({
     model: cfg.model ?? MODELOS.opus,
     max_tokens: cfg.maxTokens,
-    temperature: cfg.temperature,
     system: montarSystemPrompt({ premium: true }),
     messages: [{ role: "user", content: conteudoUsuario }],
   });

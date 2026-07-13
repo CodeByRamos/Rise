@@ -61,10 +61,12 @@ export async function responderCoach(
     .filter(Boolean)
     .join("\n\n");
 
+  // Sem `temperature`: os modelos atuais (Sonnet 5 / Opus 4.8) rejeitam o
+  // parâmetro com 400 — a chamada caía no catch e o Coach respondia sempre a
+  // frase pronta. Comportamento é guiado pelo system prompt.
   const msg = await p.client.messages.create({
     model: cfg.model!,
     max_tokens: cfg.maxTokens,
-    temperature: cfg.temperature,
     system: montarSystemPrompt({ premium: p.ctx.isPremium }),
     tools: COACH_TOOLS,
     messages: [
