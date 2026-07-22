@@ -135,12 +135,18 @@ export const actionRouter = router({
       const restUntil = settingsRows[0]?.restModeUntil ?? null;
       const descansoAte = restUntil ? dataLocalISO(restUntil, timezone) : null;
 
+      // FOR UPDATE: trava a linha da Área do início da transação até o commit.
+      // Sem isto, duas ações concorrentes na mesma Área liam o mesmo totalXp e a
+      // 2ª sobrescrevia o incremento da 1ª (lost update PERMANENTE na projeção —
+      // o ledger ficava certo, mas life_areas.totalXp perdia XP para sempre). O
+      // lock serializa: a 2ª ação só lê depois do commit da 1ª (docs/18 C4).
       const areaRows = await tx
         .select()
         .from(lifeAreas)
         .where(
           and(eq(lifeAreas.id, input.lifeAreaId), eq(lifeAreas.userId, userId)),
         )
+        .for("update")
         .limit(1);
       const area = areaRows[0];
       if (!area) {

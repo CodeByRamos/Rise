@@ -13,3 +13,8 @@ export {
   type ComputeGrantInput,
   type ComputeGrantResult,
 } from "./services/xp-grant";
+export {
+  creditarEstipendioMensal,
+  periodoEstipendio,
+  type CreditarEstipendioResult,
+} from "./services/stipend";

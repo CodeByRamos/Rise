@@ -7,6 +7,7 @@ import {
   timestamp,
   index,
   check,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { users } from "./identity";
@@ -33,6 +34,29 @@ export const sparksWallet = pgTable(
       .notNull(),
   },
   (t) => [check("sparks_balance_nonneg", sql`${t.balance} >= 0`)],
+);
+
+// Estipêndio mensal de Faíscas do Rise+/Founder (docs/12 §2, docs/18 C5).
+// A PK (user_id, period) é o guardião de idempotência: creditar o mesmo mês duas
+// vezes é um no-op (ON CONFLICT DO NOTHING), então o cron pode rodar N vezes/dia
+// e o webhook pode disparar em paralelo sem duplicar Faíscas. `period` = 'YYYY-MM'.
+export const sparksStipends = pgTable(
+  "sparks_stipends",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    period: text("period").notNull(), // 'YYYY-MM' (mês civil UTC)
+    amount: bigint("amount", { mode: "number" }).notNull(),
+    plan: text("plan").notNull(), // plano no momento do crédito (auditoria)
+    creditedAt: timestamp("credited_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.period] }),
+    index("sparks_stipends_period_idx").on(t.period),
+  ],
 );
 
 // Livro-razão de Faíscas (append-only, auditoria financeira).

@@ -10,6 +10,15 @@
         "SUPABASE_SERVICE_ROLE_KEY",
         "DATABASE_URL",
         "ANTHROPIC_API_KEY",
+        "STRIPE_SECRET_KEY",
+        "STRIPE_WEBHOOK_SECRET",
+        "STRIPE_PRICE_PLUS_MONTHLY",
+        "STRIPE_PRICE_PLUS_ANNUAL",
+        "STRIPE_PRICE_FOUNDER",
+        "VAPID_PUBLIC_KEY",
+        "VAPID_PRIVATE_KEY",
+        "VAPID_SUBJECT",
+        "CRON_SECRET",
         "VERCEL_URL"
       ],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"]

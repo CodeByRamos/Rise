@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { pushSubscriptions } from "@rise/db";
 import { router, protectedProcedure } from "../trpc";
 import { vapidPublicKey } from "../lib/push";
@@ -56,9 +56,16 @@ export const pushRouter = router({
   unsubscribe: protectedProcedure
     .input(z.object({ endpoint: z.string().url().max(1000) }))
     .mutation(async ({ ctx, input }) => {
+      // Filtra por dono: sem o userId no WHERE, qualquer usuário autenticado que
+      // conheça o endpoint de outro poderia removê-lo (docs/18 §1.2).
       await ctx.db
         .delete(pushSubscriptions)
-        .where(eq(pushSubscriptions.endpoint, input.endpoint));
+        .where(
+          and(
+            eq(pushSubscriptions.endpoint, input.endpoint),
+            eq(pushSubscriptions.userId, ctx.userId),
+          ),
+        );
       return { ok: true as const };
     }),
 });
