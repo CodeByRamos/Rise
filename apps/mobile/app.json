@@ -23,6 +23,9 @@
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#0a0b0d"
       }
-    }
+    },
+    "plugins": [
+      "expo-secure-store"
+    ]
   }
 }
