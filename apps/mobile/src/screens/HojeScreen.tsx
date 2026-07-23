@@ -10,11 +10,17 @@ import {
   ActivityIndicator,
 } from "react-native";
 import * as Crypto from "expo-crypto";
+import * as ImagePicker from "expo-image-picker";
+import { Feather } from "@expo/vector-icons";
+import { Image } from "expo-image";
+import { useNavigation } from "@react-navigation/native";
 import { templatesDaArea } from "@rise/core";
 import { trpc } from "../lib/trpc";
 import { cores, raio, espaco, tipo } from "../theme";
 import { AppText, Screen, Card, Button, Badge } from "../components/ui";
 import { useHaptics } from "../hooks/useHaptics";
+import { enviarProva } from "../lib/upload-prova";
+import type { Nav, HojeStackParams } from "../navigation/types";
 
 /**
  * Hoje — o loop core no bolso: Nível Rise, sequência, Faíscas e as Áreas em
@@ -22,7 +28,8 @@ import { useHaptics } from "../hooks/useHaptics";
  * Pull-to-refresh, haptics de recompensa e bottom sheet de registro nativos.
  */
 export function HojeScreen() {
-  const { sucesso, impacto, erro: hapticErro } = useHaptics();
+  const { sucesso, impacto, toque, erro: hapticErro } = useHaptics();
+  const nav = useNavigation<Nav<HojeStackParams>>();
   const utils = trpc.useUtils();
   const me = trpc.progress.me.useQuery();
 
@@ -40,6 +47,8 @@ export function HojeScreen() {
 
   const [areaSel, setAreaSel] = useState<string | null>(null);
   const [nota, setNota] = useState("");
+  const [fotoUri, setFotoUri] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -47,6 +56,7 @@ export function HojeScreen() {
     onSuccess: (res) => {
       setAreaSel(null);
       setNota("");
+      setFotoUri(null);
       if (!res.deduped) {
         sucesso();
         const partes = [`+${res.xpGained} XP`];
@@ -77,7 +87,27 @@ export function HojeScreen() {
   const area = d.areas.find((a) => a.id === areaSel) ?? null;
   const templates = area ? templatesDaArea(area.catalogId) : [];
 
-  function registrar() {
+  async function escolherFoto(origem: "camera" | "galeria") {
+    toque();
+    const perm =
+      origem === "camera"
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      setErro("Permita o acesso à câmera/galeria para anexar a prova.");
+      return;
+    }
+    const r =
+      origem === "camera"
+        ? await ImagePicker.launchCameraAsync({ quality: 0.6, mediaTypes: ["images"] })
+        : await ImagePicker.launchImageLibraryAsync({ quality: 0.6, mediaTypes: ["images"] });
+    if (!r.canceled && r.assets[0]) {
+      setFotoUri(r.assets[0].uri);
+      setErro(null);
+    }
+  }
+
+  async function registrar() {
     if (!area) return;
     const limpa = nota.trim();
     if (limpa.length < 3) {
@@ -86,12 +116,25 @@ export function HojeScreen() {
     }
     setErro(null);
     impacto();
-    logAction.mutate({
-      lifeAreaId: area.id,
-      clientActionId: Crypto.randomUUID(),
-      kind: "quick_log",
-      note: limpa,
-    });
+    try {
+      let photoPath: string | undefined;
+      if (fotoUri) {
+        setEnviando(true);
+        photoPath = await enviarProva(fotoUri);
+      }
+      logAction.mutate({
+        lifeAreaId: area.id,
+        clientActionId: Crypto.randomUUID(),
+        kind: "quick_log",
+        note: limpa,
+        photoPath,
+      });
+    } catch (e) {
+      hapticErro();
+      setErro(e instanceof Error ? e.message : "Falha ao enviar a prova.");
+    } finally {
+      setEnviando(false);
+    }
   }
 
   return (
@@ -114,9 +157,19 @@ export function HojeScreen() {
               <AppText variante="micro" cor="faint">NÍVEL RISE</AppText>
               <AppText variante="display" cor="snow" tabular>{d.riseLevel}</AppText>
             </View>
-            <View style={{ alignItems: "flex-end", gap: espaco.xs }}>
+            <View style={{ alignItems: "flex-end", gap: espaco.sm }}>
               <Badge texto={`${d.streakDias} ${d.streakDias === 1 ? "DIA" : "DIAS"} DE SEQUÊNCIA`} />
               <AppText variante="peq" cor="muted" tabular>{d.sparks} Faíscas</AppText>
+              <Pressable
+                onPress={() => {
+                  impacto();
+                  nav.navigate("Foco");
+                }}
+                style={s.focoBtn}
+              >
+                <Feather name="target" size={14} color={cores.brand} />
+                <AppText variante="peq" cor="brand">Foco</AppText>
+              </Pressable>
             </View>
           </View>
         }
@@ -190,12 +243,34 @@ export function HojeScreen() {
               value={nota}
               onChangeText={setNota}
             />
+
+            {fotoUri ? (
+              <View style={s.fotoRow}>
+                <Image source={{ uri: fotoUri }} style={s.fotoThumb} contentFit="cover" />
+                <AppText variante="peq" cor="muted" style={{ flex: 1 }}>Prova anexada</AppText>
+                <Pressable onPress={() => setFotoUri(null)} hitSlop={8}>
+                  <Feather name="x" size={18} color={cores.faint} />
+                </Pressable>
+              </View>
+            ) : (
+              <View style={s.provaBtns}>
+                <Pressable style={s.provaBtn} onPress={() => void escolherFoto("camera")}>
+                  <Feather name="camera" size={16} color={cores.snow} />
+                  <AppText variante="peq" cor="snow">Câmera</AppText>
+                </Pressable>
+                <Pressable style={s.provaBtn} onPress={() => void escolherFoto("galeria")}>
+                  <Feather name="image" size={16} color={cores.snow} />
+                  <AppText variante="peq" cor="snow">Galeria</AppText>
+                </Pressable>
+              </View>
+            )}
+
             {erro && <AppText variante="peq" cor="erro">{erro}</AppText>}
 
             <Button
-              titulo={logAction.isPending ? "Enviando…" : "Registrar com prova"}
-              onPress={registrar}
-              ocupado={logAction.isPending}
+              titulo={enviando ? "Enviando prova…" : logAction.isPending ? "Registrando…" : "Registrar com prova"}
+              onPress={() => void registrar()}
+              ocupado={enviando || logAction.isPending}
               semHaptic
             />
             <Pressable onPress={() => setAreaSel(null)} style={{ paddingVertical: espaco.xs }}>
@@ -216,6 +291,16 @@ const s = StyleSheet.create({
     alignItems: "flex-start",
     paddingTop: espaco.md,
     paddingBottom: espaco.xl,
+  },
+  focoBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: espaco.xs,
+    borderColor: cores.line,
+    borderWidth: 1,
+    borderRadius: raio.pill,
+    paddingHorizontal: espaco.md,
+    paddingVertical: 6,
   },
   areaTopo: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   areaLinha: { flexDirection: "row", alignItems: "center", gap: espaco.md, marginTop: espaco.md },
@@ -260,6 +345,21 @@ const s = StyleSheet.create({
     maxWidth: "100%",
   },
   chipAtivo: { borderColor: cores.brand, backgroundColor: cores.brandSoft },
+  provaBtns: { flexDirection: "row", gap: espaco.sm },
+  provaBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: espaco.sm,
+    borderColor: cores.line,
+    borderWidth: 1,
+    borderRadius: raio.md,
+    paddingVertical: espaco.md,
+    backgroundColor: cores.surface,
+  },
+  fotoRow: { flexDirection: "row", alignItems: "center", gap: espaco.md },
+  fotoThumb: { width: 44, height: 44, borderRadius: raio.sm, backgroundColor: cores.graphite },
   notaInput: {
     backgroundColor: cores.surface,
     borderColor: cores.line,

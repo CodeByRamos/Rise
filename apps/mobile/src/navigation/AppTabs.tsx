@@ -1,11 +1,8 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import { cores, espaco } from "../theme";
-import { HojeScreen } from "../screens/HojeScreen";
-import { EvolucaoScreen } from "../screens/EvolucaoScreen";
-import { ComunidadeScreen } from "../screens/ComunidadeScreen";
+import { HojeStack, EvolucaoStack, ComunidadeStack, PerfilStack } from "./stacks";
 import { CoachScreen } from "../screens/CoachScreen";
-import { PerfilScreen } from "../screens/PerfilScreen";
 
 export type AppTabsParamList = {
   Hoje: undefined;
@@ -52,15 +49,15 @@ export function AppTabs() {
         ),
       })}
     >
-      <Tab.Screen name="Hoje" component={HojeScreen} />
+      <Tab.Screen name="Hoje" component={HojeStack} />
       <Tab.Screen
         name="Evolucao"
-        component={EvolucaoScreen}
+        component={EvolucaoStack}
         options={{ tabBarLabel: "Evolução" }}
       />
-      <Tab.Screen name="Comunidade" component={ComunidadeScreen} />
+      <Tab.Screen name="Comunidade" component={ComunidadeStack} />
       <Tab.Screen name="Coach" component={CoachScreen} />
-      <Tab.Screen name="Perfil" component={PerfilScreen} />
+      <Tab.Screen name="Perfil" component={PerfilStack} />
     </Tab.Navigator>
   );
 }

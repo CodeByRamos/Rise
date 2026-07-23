@@ -2,11 +2,13 @@ import { useState } from "react";
 import { View, StyleSheet, FlatList, Pressable, RefreshControl, ActivityIndicator } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { Image } from "expo-image";
+import { useNavigation } from "@react-navigation/native";
 import { trpc } from "../lib/trpc";
 import { cores, raio, espaco } from "../theme";
 import { AppText, Screen, Card, Badge } from "../components/ui";
 import { useHaptics } from "../hooks/useHaptics";
 import { tempoRelativo, fraseDoMarco, tipoDoMarco } from "../utils/format";
+import type { Nav, ComunidadeStackParams } from "../navigation/types";
 
 type Escopo = "global" | "seguindo";
 
@@ -17,6 +19,7 @@ type Escopo = "global" | "seguindo";
  */
 export function ComunidadeScreen() {
   const { impacto } = useHaptics();
+  const nav = useNavigation<Nav<ComunidadeStackParams>>();
   const [escopo, setEscopo] = useState<Escopo>("global");
   const utils = trpc.useUtils();
   const feed = trpc.feed.list.useQuery({ escopo });
@@ -28,7 +31,17 @@ export function ComunidadeScreen() {
   return (
     <Screen semPadding>
       <View style={s.topo}>
-        <AppText variante="h1" cor="snow">Comunidade</AppText>
+        <View style={s.tituloLinha}>
+          <AppText variante="h1" cor="snow">Comunidade</AppText>
+          <View style={s.atalhos}>
+            <Pressable style={s.atalho} onPress={() => nav.navigate("Ligas")}>
+              <Feather name="award" size={18} color={cores.brand} />
+            </Pressable>
+            <Pressable style={s.atalho} onPress={() => nav.navigate("GuerraClasses")}>
+              <Feather name="shield" size={18} color={cores.brand} />
+            </Pressable>
+          </View>
+        </View>
         <View style={s.toggle}>
           {(["global", "seguindo"] as const).map((e) => (
             <Pressable
@@ -124,6 +137,17 @@ export function ComunidadeScreen() {
 
 const s = StyleSheet.create({
   topo: { paddingHorizontal: espaco.xl, paddingTop: espaco.md, paddingBottom: espaco.lg, gap: espaco.md },
+  tituloLinha: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  atalhos: { flexDirection: "row", gap: espaco.sm },
+  atalho: {
+    width: 40,
+    height: 40,
+    borderRadius: raio.pill,
+    borderColor: cores.line,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   toggle: { flexDirection: "row", backgroundColor: cores.surface, borderRadius: raio.pill, padding: 3, alignSelf: "flex-start" },
   toggleItem: { paddingHorizontal: espaco.lg, paddingVertical: espaco.sm, borderRadius: raio.pill },
   toggleAtivo: { backgroundColor: cores.brand },

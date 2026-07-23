@@ -1,7 +1,10 @@
-import { View, StyleSheet, FlatList, RefreshControl, ActivityIndicator } from "react-native";
+import { View, StyleSheet, FlatList, RefreshControl, ActivityIndicator, Pressable } from "react-native";
+import { Feather } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 import { trpc } from "../lib/trpc";
 import { cores, raio, espaco } from "../theme";
 import { AppText, Screen, Card } from "../components/ui";
+import type { Nav, EvolucaoStackParams } from "../navigation/types";
 
 /**
  * Evolução — a visão de progresso do "personagem": Nível Rise, totais e cada
@@ -9,6 +12,7 @@ import { AppText, Screen, Card } from "../components/ui";
  * tree e o heatmap de consistência (fases seguintes).
  */
 export function EvolucaoScreen() {
+  const nav = useNavigation<Nav<EvolucaoStackParams>>();
   const utils = trpc.useUtils();
   const me = trpc.progress.me.useQuery();
 
@@ -45,6 +49,11 @@ export function EvolucaoScreen() {
               <Metrica valor={d.totalXp} rotulo="XP TOTAL" />
               <Metrica valor={d.streakRecorde} rotulo="RECORDE" />
             </View>
+            <Pressable style={s.linkCard} onPress={() => nav.navigate("Estatisticas")}>
+              <Feather name="bar-chart-2" size={18} color={cores.brand} />
+              <AppText variante="corpo" cor="snow" style={{ flex: 1 }}>Estatísticas profundas</AppText>
+              <Feather name="chevron-right" size={18} color={cores.faint} />
+            </Pressable>
           </View>
         }
         renderItem={({ item: a }) => {
@@ -94,6 +103,17 @@ const s = StyleSheet.create({
     flexDirection: "row",
     gap: espaco.md,
     marginTop: espaco.lg,
+    backgroundColor: cores.surface,
+    borderColor: cores.line,
+    borderWidth: 1,
+    borderRadius: raio.card,
+    padding: espaco.lg,
+  },
+  linkCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: espaco.md,
+    marginTop: espaco.md,
     backgroundColor: cores.surface,
     borderColor: cores.line,
     borderWidth: 1,

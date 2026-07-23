@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
-import { View, ActivityIndicator, StyleSheet } from "react-native";
+import { View, ActivityIndicator, StyleSheet, Pressable } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
-import { cores } from "../theme";
+import { cores, espaco } from "../theme";
+import { AppText } from "../components/ui";
+import { useBiometricLock } from "../hooks/useBiometricLock";
 import { AppTabs } from "./AppTabs";
 import { LoginScreen } from "../screens/LoginScreen";
 
@@ -64,8 +67,32 @@ export function RootNavigator() {
 
   return (
     <NavigationContainer theme={navTheme} linking={linking}>
-      {session ? <AppTabs /> : <LoginScreen />}
+      {session ? <SessaoProtegida /> : <LoginScreen />}
     </NavigationContainer>
+  );
+}
+
+/** Envolve o app logado com o bloqueio biométrico local (cold start). */
+function SessaoProtegida() {
+  const { estado, desbloquear } = useBiometricLock();
+
+  if (estado === "desbloqueado") return <AppTabs />;
+
+  return (
+    <View style={s.lock}>
+      <Feather name="lock" size={32} color={cores.brand} />
+      <AppText variante="h3" cor="snow" centro style={{ marginTop: espaco.lg }}>
+        Rise bloqueado
+      </AppText>
+      <AppText variante="peq" cor="muted" centro style={{ marginTop: espaco.sm }}>
+        Use sua biometria para continuar.
+      </AppText>
+      {estado === "bloqueado" && (
+        <Pressable style={s.desbloquear} onPress={() => void desbloquear()}>
+          <AppText variante="corpoForte" cor="void">Desbloquear</AppText>
+        </Pressable>
+      )}
+    </View>
   );
 }
 
@@ -75,5 +102,19 @@ const s = StyleSheet.create({
     backgroundColor: cores.void,
     justifyContent: "center",
     alignItems: "center",
+  },
+  lock: {
+    flex: 1,
+    backgroundColor: cores.void,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: espaco.xxl,
+  },
+  desbloquear: {
+    marginTop: espaco.xl,
+    backgroundColor: cores.brand,
+    borderRadius: 14,
+    paddingHorizontal: espaco.xxl,
+    paddingVertical: 14,
   },
 });
