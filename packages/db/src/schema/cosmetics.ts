@@ -104,6 +104,24 @@ export const pushSubscriptions = pgTable(
   (t) => [index("push_subscriptions_user_idx").on(t.userId)],
 );
 
+// Tokens de push nativo (Expo). O app mobile registra um ExponentPushToken por
+// dispositivo; o envio usa a Expo Push API (não VAPID). Token é PK (único por
+// dispositivo) e pode trocar de dono ao relogar no mesmo aparelho.
+export const expoPushTokens = pgTable(
+  "expo_push_tokens",
+  {
+    token: text("token").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    platform: text("platform"), // ios | android
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [index("expo_push_tokens_user_idx").on(t.userId)],
+);
+
 // Grafo social: quem segue quem (doc 08 — FriendEdge/Follow).
 export const follows = pgTable(
   "follows",

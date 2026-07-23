@@ -4,8 +4,20 @@ import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import * as Notifications from "expo-notifications";
 import { trpc, criarTrpcClient } from "./src/lib/trpc";
 import { RootNavigator } from "./src/navigation/RootNavigator";
+
+// Notificações em primeiro plano aparecem como banner (não só na bandeja).
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 /**
  * Raiz do app Rise mobile. Providers na ordem correta: gesture handler (raiz

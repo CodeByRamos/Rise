@@ -160,16 +160,22 @@ export function HojeScreen() {
             <View style={{ alignItems: "flex-end", gap: espaco.sm }}>
               <Badge texto={`${d.streakDias} ${d.streakDias === 1 ? "DIA" : "DIAS"} DE SEQUÊNCIA`} />
               <AppText variante="peq" cor="muted" tabular>{d.sparks} Faíscas</AppText>
-              <Pressable
-                onPress={() => {
-                  impacto();
-                  nav.navigate("Foco");
-                }}
-                style={s.focoBtn}
-              >
-                <Feather name="target" size={14} color={cores.brand} />
-                <AppText variante="peq" cor="brand">Foco</AppText>
-              </Pressable>
+              <View style={{ flexDirection: "row", gap: espaco.sm }}>
+                <Pressable
+                  onPress={() => { impacto(); nav.navigate("Planejamento"); }}
+                  style={s.focoBtn}
+                >
+                  <Feather name="compass" size={14} color={cores.brand} />
+                  <AppText variante="peq" cor="brand">Planejar</AppText>
+                </Pressable>
+                <Pressable
+                  onPress={() => { impacto(); nav.navigate("Foco"); }}
+                  style={s.focoBtn}
+                >
+                  <Feather name="target" size={14} color={cores.brand} />
+                  <AppText variante="peq" cor="brand">Foco</AppText>
+                </Pressable>
+              </View>
             </View>
           </View>
         }

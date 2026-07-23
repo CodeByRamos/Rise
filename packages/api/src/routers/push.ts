@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { and, eq } from "drizzle-orm";
-import { pushSubscriptions } from "@rise/db";
+import { pushSubscriptions, expoPushTokens } from "@rise/db";
 import { router, protectedProcedure } from "../trpc";
 import { vapidPublicKey } from "../lib/push";
 
@@ -64,6 +64,51 @@ export const pushRouter = router({
           and(
             eq(pushSubscriptions.endpoint, input.endpoint),
             eq(pushSubscriptions.userId, ctx.userId),
+          ),
+        );
+      return { ok: true as const };
+    }),
+
+  /** Registra o Expo push token deste dispositivo (app nativo). */
+  registerExpo: protectedProcedure
+    .input(
+      z.object({
+        token: z.string().min(1).max(200),
+        platform: z.enum(["ios", "android"]).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        // Token é PK: ao relogar no mesmo aparelho, reatribui ao dono atual.
+        await ctx.db
+          .insert(expoPushTokens)
+          .values({ token: input.token, userId: ctx.userId, platform: input.platform })
+          .onConflictDoUpdate({
+            target: expoPushTokens.token,
+            set: { userId: ctx.userId, platform: input.platform },
+          });
+      } catch (e) {
+        if (e instanceof Error && /foreign key|violates/i.test(e.message)) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: "Abra o app uma vez antes de ativar as notificações.",
+          });
+        }
+        throw e;
+      }
+      return { ok: true as const };
+    }),
+
+  /** Remove o token deste dispositivo (logout / desativar). */
+  unregisterExpo: protectedProcedure
+    .input(z.object({ token: z.string().min(1).max(200) }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db
+        .delete(expoPushTokens)
+        .where(
+          and(
+            eq(expoPushTokens.token, input.token),
+            eq(expoPushTokens.userId, ctx.userId),
           ),
         );
       return { ok: true as const };

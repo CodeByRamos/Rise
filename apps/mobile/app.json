@@ -38,6 +38,12 @@
         {
           "faceIDPermission": "O Rise usa Face ID para desbloquear o app."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#10b981"
+        }
       ]
     ]
   }

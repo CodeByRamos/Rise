@@ -7,6 +7,7 @@ import { supabase } from "../lib/supabase";
 import { cores, espaco } from "../theme";
 import { AppText } from "../components/ui";
 import { useBiometricLock } from "../hooks/useBiometricLock";
+import { usePushRegistration } from "../hooks/usePushRegistration";
 import { AppTabs } from "./AppTabs";
 import { LoginScreen } from "../screens/LoginScreen";
 
@@ -75,6 +76,8 @@ export function RootNavigator() {
 /** Envolve o app logado com o bloqueio biométrico local (cold start). */
 function SessaoProtegida() {
   const { estado, desbloquear } = useBiometricLock();
+  // Registra push só depois de desbloqueado (usuário confirmado no dispositivo).
+  usePushRegistration(estado === "desbloqueado");
 
   if (estado === "desbloqueado") return <AppTabs />;
 

@@ -8,6 +8,10 @@ import type {
 } from "./types";
 import { HojeScreen } from "../screens/HojeScreen";
 import { FocoScreen } from "../screens/FocoScreen";
+import { PlanejamentoScreen } from "../screens/PlanejamentoScreen";
+import { HabitosScreen } from "../screens/HabitosScreen";
+import { MetasScreen } from "../screens/MetasScreen";
+import { HistoricoScreen } from "../screens/HistoricoScreen";
 import { EvolucaoScreen } from "../screens/EvolucaoScreen";
 import { EstatisticasScreen } from "../screens/EstatisticasScreen";
 import { ComunidadeScreen } from "../screens/ComunidadeScreen";
@@ -32,6 +36,10 @@ export function HojeStack() {
     <Hoje.Navigator screenOptions={headerBase}>
       <Hoje.Screen name="HojeHome" component={HojeScreen} options={{ headerShown: false }} />
       <Hoje.Screen name="Foco" component={FocoScreen} options={{ title: "Foco" }} />
+      <Hoje.Screen name="Planejamento" component={PlanejamentoScreen} options={{ title: "Planejar" }} />
+      <Hoje.Screen name="Habitos" component={HabitosScreen} options={{ title: "Hábitos" }} />
+      <Hoje.Screen name="Metas" component={MetasScreen} options={{ title: "Metas" }} />
+      <Hoje.Screen name="Historico" component={HistoricoScreen} options={{ title: "Histórico" }} />
     </Hoje.Navigator>
   );
 }

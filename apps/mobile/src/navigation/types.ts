@@ -8,6 +8,9 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 export type HojeStackParams = {
   HojeHome: undefined;
   Foco: undefined;
+  Planejamento: undefined;
+  Habitos: undefined;
+  Metas: undefined;
   Historico: undefined;
 };
 
